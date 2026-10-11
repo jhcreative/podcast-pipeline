@@ -1,0 +1,13 @@
+[Unit]
+Description=Rockstar Pipeline — daily watch renewal at 04:00 UTC
+Requires=rockstar-renew-watches.service
+
+[Timer]
+# Drive watch channels expire every 1–24h; Gmail watch expires every 7 days.
+# Running daily at 04:00 UTC (off-peak) keeps both fresh with margin.
+OnCalendar=*-*-* 04:00:00 UTC
+# Persistent=true: if the box was down at 04:00, run the renewal immediately on next boot.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,614 @@
+{
+  "_fixture_note": "SYNTHETIC — the shape of GET /api/pages/blog/<slug> on Tailor, built from this folder's inputs with the golden test's ACCEPTED_DELTAS applied in reverse; invented ids, invented guest.",
+  "id": "00000000-0000-4000-8000-000000000e31",
+  "slug": "bliss-is-the-system-the-ecs-estrogen-perimenopause-connection",
+  "title": "Bliss Is the System | The ECS, Estrogen & Perimenopause Connection | GenX Hits Menopause E31",
+  "parent_slug": "blog",
+  "sort_order": 0,
+  "is_home": false,
+  "page_mode": "navigation",
+  "module_key": null,
+  "status": "published",
+  "nav_area": "header",
+  "thumbnail_media_id": null,
+  "thumbnail_focal_x": null,
+  "thumbnail_focal_y": null,
+  "meta_description": "Phytopharmacist Dr. Saffi Velloquin (a synthetic guest) joins Heather to talk about the endocannabinoid system, estrogen & perimenopause.",
+  "card_media_id": "00000000-0000-4000-8000-0000000c0031",
+  "card_focal_x": null,
+  "card_focal_y": null,
+  "created_at": "2026-09-14T13:48:51.210139Z",
+  "updated_at": "2026-09-21T23:18:25.143388Z",
+  "html": "",
+  "js": "",
+  "scss": "",
+  "author_display_name": {
+    "first_name": "Heather",
+    "last_name": "Reilly Hiemstra"
+  },
+  "last_edited_by_display_name": {
+    "first_name": "Heather",
+    "last_name": "Reilly Hiemstra"
+  },
+  "published_at": "2026-07-23T16:48:00Z",
+  "tags": [
+    {
+      "slug": "podcast",
+      "name": "Podcast",
+      "color": null
+    }
+  ],
+  "feeds": [],
+  "galleries": [],
+  "content_mode": "blocks",
+  "blocks": [
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "In ",
+              "marks": [],
+              "href": null
+            },
+            {
+              "type": "text",
+              "text": "“Bliss Is the System | The ECS, Estrogen & Perimenopause Connection”",
+              "marks": [
+                "strong"
+              ],
+              "href": null
+            },
+            {
+              "type": "text",
+              "text": ", host ",
+              "marks": [],
+              "href": null
+            },
+            {
+              "type": "text",
+              "text": "Heather Reilly Hiemstra",
+              "marks": [],
+              "href": "/about"
+            },
+            {
+              "type": "text",
+              "text": " sits down with ",
+              "marks": [],
+              "href": null
+            },
+            {
+              "type": "text",
+              "text": "Dr. Saffi Velloquin",
+              "marks": [
+                "strong"
+              ],
+              "href": null
+            },
+            {
+              "type": "text",
+              "text": " — phytopharmacist and synthetic test guest — for a conversation about the body’s overlooked hormonal partner and what perimenopause symptoms are telling you.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        },
+        {
+          "type": "cta",
+          "label": "Listen on Spotify",
+          "href": "https://open.spotify.com/episode/0SynthEp31AbCdEfGhJkLm"
+        },
+        {
+          "type": "cta",
+          "label": "Listen on Apple",
+          "href": "https://podcasts.apple.com/us/podcast/bliss-is-the-system-the-ecs-estrogen/id1785708777?i=1000000000031"
+        },
+        {
+          "type": "cta",
+          "label": "Listen on Audible",
+          "href": "https://www.amazon.com/GenX-Hits-Menopause/dp/B0DQ8YXF3D"
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "toc",
+      "title": "On this page"
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Heather gets together with Dr. Saffi Velloquin - phytopharmacist, PhD in pharmaceutical biology and phytochemistry, and certified endocannabinoid medicine specialist - to walk through a hormonal partner most women never hear about: the endocannabinoid system (ECS).",
+              "marks": [],
+              "href": null
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Picture the ECS as a quiet switchboard under every organ — it helps steady sleep, mood, and pain, and it keeps up a running exchange with estrogen across the same systems that wobble in perimenopause.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "If your nights are broken, your moods arrive unannounced, and your focus keeps slipping, this episode connects those dots and leaves you with one small thing to try this week.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Conversations include:",
+              "marks": [],
+              "href": null
+            }
+          ]
+        },
+        {
+          "type": "ul",
+          "items": [
+            {
+              "type": "li",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "The Bliss Molecule You’re Running Low On",
+                  "marks": [
+                    "strong"
+                  ],
+                  "href": null
+                },
+                {
+                  "type": "text",
+                  "text": " Anandamide - Sanskrit for ",
+                  "marks": [],
+                  "href": null
+                },
+                {
+                  "type": "text",
+                  "text": "bliss",
+                  "marks": [
+                    "em"
+                  ],
+                  "href": null
+                },
+                {
+                  "type": "text",
+                  "text": " - rises and falls with estrogen, which is why its swings in perimenopause can show up as mood, pain, and sleep changes. Dr. Saffi explains the link in plain terms.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            },
+            {
+              "type": "li",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "Why Men and Women Don’t Share the Same ECS",
+                  "marks": [
+                    "strong"
+                  ],
+                  "href": null
+                },
+                {
+                  "type": "text",
+                  "text": " How receptor patterns and endocannabinoid tone differ between the sexes, and why that difference rarely makes it into training.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            },
+            {
+              "type": "li",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "2-AG, Orgasm, and Depression ",
+                  "marks": [
+                    "strong"
+                  ],
+                  "href": null
+                },
+                {
+                  "type": "text",
+                  "text": " A second endocannabinoid, 2-AG, and what early research suggests about its part in pleasure and in low mood.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            },
+            {
+              "type": "li",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "High-THC Culture and the Overloaded System",
+                  "marks": [
+                    "strong"
+                  ],
+                  "href": null
+                },
+                {
+                  "type": "text",
+                  "text": " What heavy, frequent THC use may do to receptor sensitivity over time, and why moderation matters more in midlife.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            },
+            {
+              "type": "li",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "The Simplest ECS Reset You Can Start Today ",
+                  "marks": [
+                    "strong"
+                  ],
+                  "href": null
+                },
+                {
+                  "type": "text",
+                  "text": " The omega-3 to omega-6 balance as raw material for the body’s own endocannabinoids, and an easy first step at the grocery store.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Tune in to recalibrate your understanding of how estrogen & perimenopause really relate — and walk away with the science that turns confusion into agency, and symptoms into signals you finally know how to read.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [
+          {
+            "text": "About Dr. Saffi Velloquin"
+          }
+        ],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Dr. Saffi Velloquin is a phytopharmacist and women’s health strategist specializing in cannabinoid science and female-specific physiology. She is a synthetic guest, invented for testing: no real person, practice or platform stands behind the name.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "In this invented bio she writes and teaches about midlife physiology for a general audience, and believes the science lands best when it is told as a story.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [
+          {
+            "text": "Episode Highlights"
+          }
+        ],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "inlines": [
+            {
+              "text": "The ECS, Estrogen & Perimenopause Connection"
+            }
+          ],
+          "type": "h3"
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "blockquote",
+      "quote": "“Most people have heard that the endocannabinoid system helps with sleep, mood and pain. What almost nobody mentions is that it also talks to estrogen, all day, in both directions. So when estrogen starts to swing, that whole conversation changes, and you feel it at three in the morning.”",
+      "attribution": "Dr. Saffi",
+      "source": null,
+      "source_url": null,
+      "background": "plain",
+      "background_media_id": null
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "inlines": [
+            {
+              "text": "The Bliss Molecule You’re Running Low On"
+            }
+          ],
+          "type": "h3"
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "blockquote",
+      "quote": "“Anandamide is the molecule I call the quiet cheerleader. When estrogen is up, it tends to be up too, and the world feels a little softer. In perimenopause that rhythm gets noisy. Some months there is plenty, some months there is almost none, and nobody tells you why your mood followed it.”",
+      "attribution": "Dr. Saffi",
+      "source": null,
+      "source_url": null,
+      "background": "plain",
+      "background_media_id": null
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "inlines": [
+            {
+              "text": "The Brain Adapts First"
+            }
+          ],
+          "type": "h3"
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "blockquote",
+      "quote": "“The brain notices the change before almost anything else. It is full of estrogen receptors, so it starts rewiring early. That is the fog, the lost word, the tired-but-wired feeling. It is not you failing. It is your brain doing renovation work while you still live in the house.”",
+      "attribution": "Dr. Saffi",
+      "source": null,
+      "source_url": null,
+      "background": "plain",
+      "background_media_id": null
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "inlines": [
+            {
+              "text": "The Simplest ECS Reset You Can Start Today"
+            }
+          ],
+          "type": "h3"
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "blockquote",
+      "quote": "“If you want one thing to do this week, look at your fats. Omega-3 and omega-6 are building blocks for the endocannabinoids you make yourself. Most of us eat far more omega-6 than we need. Tip the balance back a little and you are giving the system something to work with.”",
+      "attribution": "Dr. Saffi",
+      "source": null,
+      "source_url": null,
+      "background": "plain",
+      "background_media_id": null
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "inlines": [
+            {
+              "text": "Science as Storytelling"
+            }
+          ],
+          "type": "h3"
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "blockquote",
+      "quote": "“I think science is a kind of storytelling. Once a woman understands what is happening in her own body, she stops waiting for it to happen to her. She starts asking better questions, and she starts expecting better answers.”",
+      "attribution": "Dr. Saffi",
+      "source": null,
+      "source_url": null,
+      "background": "plain",
+      "background_media_id": null
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [
+          {
+            "text": "Share this episode"
+          }
+        ],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Know a woman who keeps hearing it’s “just hormones”? Send her this episode.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "faq",
+      "title": "FAQs",
+      "questions": [
+        {
+          "type": "question",
+          "prompt": [
+            {
+              "text": "Who is Dr. Saffi Velloquin and what is her expertise in endocannabinoid medicine?"
+            }
+          ],
+          "answer": [
+            {
+              "type": "p",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "Dr. Saffi Velloquin is a synthetic guest, invented for this test fixture. In the episode she is described as a phytopharmacist and women’s health strategist who studies how the endocannabinoid system meets female-specific physiology, and her segment turns that science into steps a listener can take this week.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "question",
+          "prompt": [
+            {
+              "text": "What is the endocannabinoid system and how does it affect perimenopause symptoms like mood, sleep, and brain fog?"
+            }
+          ],
+          "answer": [
+            {
+              "type": "p",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "The endocannabinoid system (ECS) is a signaling network found throughout the body whose job is balance: it helps regulate sleep, mood, pain and the menstrual cycle. Dr. Velloquin explains that estrogen and the ECS influence each other, so when estrogen swings in perimenopause, ECS tone can swing with it. That is one reason sleep, mood and focus can all feel unsettled at once.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "question",
+          "prompt": [
+            {
+              "text": "What is anandamide and why does it drop during perimenopause?"
+            }
+          ],
+          "answer": [
+            {
+              "type": "p",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "Anandamide — from the Sanskrit word for \"bliss\" — is an endocannabinoid produced on demand in your body, and its function closely mirrors that of THC: it binds to CB1 receptors to reduce pain perception and improve mood. Dr. Velloquin explains that estrogen directly promotes anandamide production, which is why women typically feel better and have higher pain tolerance around ovulation when estrogen peaks. In perimenopause, as estrogen oscillates erratically rather than declining in a straight line, anandamide levels become equally unpredictable, stripping away the rhythmic mood and pain regulation that premenopausal women rely on without even realizing it. Understanding this link is the first step toward targeting ECS support intentionally during the perimenopause transition.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "question",
+          "prompt": [
+            {
+              "text": "What does chronic high-THC cannabis use do to the endocannabinoid system in perimenopausal women?"
+            }
+          ],
+          "answer": [
+            {
+              "type": "p",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "Chronic high-dose THC overstimulates the ECS until receptor sensitivity downregulates and the system essentially stops responding, which Dr. Velloquin describes as the body saying \"I'm not going to accept this anymore.\" Women are hit harder than men because they metabolize THC into stronger metabolites that stay in the body longer due to higher fat cell percentages, and after three to four days of use, women show significantly higher plasma THC levels than men at the same dose. Dr. Velloquin recommends that no one needs flower above 20% THC, and that any THC-containing products should be used in the late evening — never during the day — to avoid further impairing cognitive function that is already under stress during perimenopause.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "layout": "child",
+  "hero_layout": "simple_text",
+  "hero_media_id": "00000000-0000-4000-8000-0000000c0031",
+  "hero_focal_x": null,
+  "hero_focal_y": null,
+  "hero_text": null,
+  "structured_data": null,
+  "search_phrase": null,
+  "subtitle": null,
+  "children": []
+}

@@ -1,0 +1,27 @@
+[Unit]
+Description=Rockstar Pipeline — webhook receiver (FastAPI/uvicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=rockstar
+Group=rockstar
+WorkingDirectory=/opt/rockstar-pipeline
+EnvironmentFile=/opt/rockstar-pipeline/.env
+# VENV_PATH and WORK_DIR_BASE are consumed by the bash transcribe scripts
+Environment=VENV_PATH=/opt/rockstar-pipeline/scripts/whisperx_env
+Environment=WORK_DIR_BASE=/var/tmp/rockstar-work
+Environment=BRAND_ASSETS_DIR=/opt/rockstar-pipeline/BrandAssets
+Environment=FFMPEG_BIN=/usr/bin/ffmpeg
+ExecStart=/opt/rockstar-pipeline/venv/bin/uvicorn webhook_service:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --workers 1
+Restart=on-failure
+RestartSec=5
+# Keep logs in journald — tail with: journalctl -u rockstar-webhook -f
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

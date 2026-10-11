@@ -1,0 +1,29 @@
+[Unit]
+Description=Rockstar Pipeline — job worker
+After=network.target rockstar-webhook.service
+
+[Service]
+Type=simple
+User=rockstar
+Group=rockstar
+WorkingDirectory=/opt/rockstar-pipeline
+EnvironmentFile=/opt/rockstar-pipeline/.env
+Environment=VENV_PATH=/opt/rockstar-pipeline/scripts/whisperx_env
+Environment=WORK_DIR_BASE=/var/tmp/rockstar-work
+Environment=BRAND_ASSETS_DIR=/opt/rockstar-pipeline/BrandAssets
+# ENV_FILE is what the bash transcribe scripts source for HF_TOKEN (pyannote
+# diarization). Without it they fall back to $HOME/RockstarPodcast/scripts/.env
+# (/home/rockstar/…, which doesn't exist) and exit 4 — even though HF_TOKEN is
+# already in the process env via EnvironmentFile above. Point it at the token
+# file that ships on the box. Regression surfaced on the first Round-1 reprocess
+# after 0d8ed56; see transcribe_fast.sh's ENV_FILE default.
+Environment=ENV_FILE=/opt/rockstar-pipeline/scripts/.env
+Environment=FFMPEG_BIN=/usr/bin/ffmpeg
+ExecStart=/opt/rockstar-pipeline/venv/bin/python worker.py
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,95 @@
+{
+  "_fixture_note": "SYNTHETIC EPISODE — hand-written for SHARE-02/FIX-01: invented guest, invented quotes, no real person. Shaped like the BLOG-02 fixture it replaces (Brand Team quotes.json plus a `heading` per quote).",
+  "quotes": [
+    {
+      "id": "q01",
+      "speaker": "Dr. Saffi Velloquin",
+      "text": "Most people have heard that the endocannabinoid system helps with sleep, mood and pain. What almost nobody mentions is that it also talks to estrogen, all day, in both directions. So when estrogen starts to swing, that whole conversation changes, and you feel it at three in the morning.",
+      "heading": "The ECS, Estrogen & Perimenopause Connection",
+      "transcript_start_ms": 0,
+      "transcript_end_ms": 0,
+      "seo_keywords": [
+        "the ecs, estrogen & perimenopause connection",
+        "perimenopause",
+        "synthetic fixture"
+      ],
+      "seo_rationale": "Synthetic fixture: invented rationale, kept for the field's shape.",
+      "reel_hook": "Most people have heard that the endocannabinoid system helps with sleep, mood and pain.",
+      "reel_candidate": true,
+      "lisa_approved": true,
+      "lisa_note": "Synthetic fixture: invented quote from an invented guest. Ships as-is."
+    },
+    {
+      "id": "q02",
+      "speaker": "Dr. Saffi Velloquin",
+      "text": "Anandamide is the molecule I call the quiet cheerleader. When estrogen is up, it tends to be up too, and the world feels a little softer. In perimenopause that rhythm gets noisy. Some months there is plenty, some months there is almost none, and nobody tells you why your mood followed it.",
+      "heading": "The Bliss Molecule You’re Running Low On",
+      "transcript_start_ms": 0,
+      "transcript_end_ms": 0,
+      "seo_keywords": [
+        "the bliss molecule you’re running low on",
+        "perimenopause",
+        "synthetic fixture"
+      ],
+      "seo_rationale": "Synthetic fixture: invented rationale, kept for the field's shape.",
+      "reel_hook": "Anandamide is the molecule I call the quiet cheerleader.",
+      "reel_candidate": true,
+      "lisa_approved": true,
+      "lisa_note": "Synthetic fixture: invented quote from an invented guest. Ships as-is."
+    },
+    {
+      "id": "q03",
+      "speaker": "Dr. Saffi Velloquin",
+      "text": "The brain notices the change before almost anything else. It is full of estrogen receptors, so it starts rewiring early. That is the fog, the lost word, the tired-but-wired feeling. It is not you failing. It is your brain doing renovation work while you still live in the house.",
+      "heading": "The Brain Adapts First",
+      "transcript_start_ms": 0,
+      "transcript_end_ms": 0,
+      "seo_keywords": [
+        "the brain adapts first",
+        "perimenopause",
+        "synthetic fixture"
+      ],
+      "seo_rationale": "Synthetic fixture: invented rationale, kept for the field's shape.",
+      "reel_hook": "The brain notices the change before almost anything else.",
+      "reel_candidate": true,
+      "lisa_approved": true,
+      "lisa_note": "Synthetic fixture: invented quote from an invented guest. Ships as-is."
+    },
+    {
+      "id": "q04",
+      "speaker": "Dr. Saffi Velloquin",
+      "text": "If you want one thing to do this week, look at your fats. Omega-3 and omega-6 are building blocks for the endocannabinoids you make yourself. Most of us eat far more omega-6 than we need. Tip the balance back a little and you are giving the system something to work with.",
+      "heading": "The Simplest ECS Reset You Can Start Today",
+      "transcript_start_ms": 0,
+      "transcript_end_ms": 0,
+      "seo_keywords": [
+        "the simplest ecs reset you can start today",
+        "perimenopause",
+        "synthetic fixture"
+      ],
+      "seo_rationale": "Synthetic fixture: invented rationale, kept for the field's shape.",
+      "reel_hook": "If you want one thing to do this week, look at your fats.",
+      "reel_candidate": false,
+      "lisa_approved": true,
+      "lisa_note": "Synthetic fixture: invented quote from an invented guest. Ships as-is."
+    },
+    {
+      "id": "q05",
+      "speaker": "Dr. Saffi Velloquin",
+      "text": "I think science is a kind of storytelling. Once a woman understands what is happening in her own body, she stops waiting for it to happen to her. She starts asking better questions, and she starts expecting better answers.",
+      "heading": "Science as Storytelling",
+      "transcript_start_ms": 0,
+      "transcript_end_ms": 0,
+      "seo_keywords": [
+        "science as storytelling",
+        "perimenopause",
+        "synthetic fixture"
+      ],
+      "seo_rationale": "Synthetic fixture: invented rationale, kept for the field's shape.",
+      "reel_hook": "I think science is a kind of storytelling.",
+      "reel_candidate": false,
+      "lisa_approved": true,
+      "lisa_note": "Synthetic fixture: invented quote from an invented guest. Ships as-is."
+    }
+  ]
+}

@@ -1,0 +1,643 @@
+{
+  "_fixture_note": "SYNTHETIC — the shape of GET /api/pages/blog/<slug> on Tailor, built from this folder's inputs with the golden test's ACCEPTED_DELTAS applied in reverse; invented ids, invented guest.",
+  "id": "00000000-0000-4000-8000-000000000e30",
+  "slug": "feed-your-head-gut-microbiome-hormones-midlife-vitality",
+  "title": "Feed Your Head | Gut Microbiome, Hormones & Midlife Vitality | GenX Hits Menopause E30",
+  "parent_slug": "blog",
+  "sort_order": 1,
+  "is_home": false,
+  "page_mode": "navigation",
+  "module_key": null,
+  "status": "published",
+  "nav_area": "header",
+  "thumbnail_media_id": null,
+  "thumbnail_focal_x": null,
+  "thumbnail_focal_y": null,
+  "meta_description": "Heather talks with Dr. Oriel Fenwax (a synthetic guest) about the gut microbiome’s role in hormone health & midlife vitality.",
+  "card_media_id": "00000000-0000-4000-8000-0000000c0030",
+  "card_focal_x": null,
+  "card_focal_y": null,
+  "created_at": "2026-09-14T13:48:51.425185Z",
+  "updated_at": "2026-09-21T23:18:25.344371Z",
+  "html": "",
+  "js": "",
+  "scss": "",
+  "author_display_name": {
+    "first_name": "Heather",
+    "last_name": "Reilly Hiemstra"
+  },
+  "last_edited_by_display_name": {
+    "first_name": "Heather",
+    "last_name": "Reilly Hiemstra"
+  },
+  "published_at": "2026-07-17T22:12:00Z",
+  "tags": [
+    {
+      "slug": "podcast",
+      "name": "Podcast",
+      "color": null
+    }
+  ],
+  "feeds": [],
+  "galleries": [],
+  "content_mode": "blocks",
+  "blocks": [
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "In ",
+              "marks": [],
+              "href": null
+            },
+            {
+              "type": "text",
+              "text": "“Feed Your Head | Gut Microbiome, Hormones & Midlife Vitality”",
+              "marks": [
+                "strong"
+              ],
+              "href": null
+            },
+            {
+              "type": "text",
+              "text": ", host ",
+              "marks": [],
+              "href": null
+            },
+            {
+              "type": "text",
+              "text": "Heather Reilly Hiemstra",
+              "marks": [],
+              "href": "/about"
+            },
+            {
+              "type": "text",
+              "text": " sits down with ",
+              "marks": [],
+              "href": null
+            },
+            {
+              "type": "text",
+              "text": "Dr. Oriel Fenwax",
+              "marks": [
+                "strong"
+              ],
+              "href": null
+            },
+            {
+              "type": "text",
+              "text": " — infectious disease physician and synthetic test guest — for a conversation about the gut microbiome, hormones and midlife vitality.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        },
+        {
+          "type": "cta",
+          "label": "Listen on Spotify",
+          "href": "https://open.spotify.com/episode/0SynthEp30AbCdEfGhJkLm"
+        },
+        {
+          "type": "cta",
+          "label": "Listen on Apple",
+          "href": "https://podcasts.apple.com/us/podcast/feed-your-head-gut-microbiome-hormones-midlife-vitality/id1785708777?i=1000000000030"
+        },
+        {
+          "type": "cta",
+          "label": "Listen on Audible",
+          "href": "https://www.amazon.com/GenX-Hits-Menopause/dp/B0DQ8YXF3D"
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "toc",
+      "title": "On this page"
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Heather Reilly-Hemstra sits down with Oriel J. Fenwax, MD FIDSA — infectious disease physician, associate professor at the University of South Florida, and, yes, a weekend sailor — to explore the organ that quietly runs everything: your gut.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Think of your microbiome as a sourdough starter: neglect it and you get hockey pucks; feed it right and it rises to the occasion every time.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "If your mood, sleep, hormones, or midlife energy feel like they’ve gone off the rails, this episode is a road map back — because a lot of what you are hunting for starts in your intestines.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Conversations include:",
+              "marks": [],
+              "href": null
+            }
+          ]
+        },
+        {
+          "type": "ul",
+          "items": [
+            {
+              "type": "li",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "The Microbiome Footprint",
+                  "marks": [
+                    "strong"
+                  ],
+                  "href": null
+                },
+                {
+                  "type": "text",
+                  "text": " What the bacteria in your gut say about how you eat — and why a junk-food footprint keeps asking for more of the same.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            },
+            {
+              "type": "li",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "Microplastics & Menopause Hormones",
+                  "marks": [
+                    "strong"
+                  ],
+                  "href": null
+                },
+                {
+                  "type": "text",
+                  "text": " How plastic packaging and ultra-processed foods may interfere with hormone health heading into perimenopause and menopause.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            },
+            {
+              "type": "li",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "Five Pillars of Health",
+                  "marks": [
+                    "strong"
+                  ],
+                  "href": null
+                },
+                {
+                  "type": "text",
+                  "text": " Diet, exercise, sleep, connection — and a fifth pillar that gets skipped: fewer plastics and processed foods, one swap at a time.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            },
+            {
+              "type": "li",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "The Triathlete Bacteria Study",
+                  "marks": [
+                    "strong"
+                  ],
+                  "href": null
+                },
+                {
+                  "type": "text",
+                  "text": " A study of gut bacteria that turn lactic acid into fuel, and what it might mean for energy in a midlife body.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            },
+            {
+              "type": "li",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "Actionable First Steps",
+                  "marks": [
+                    "strong"
+                  ],
+                  "href": null
+                },
+                {
+                  "type": "text",
+                  "text": " From a spoonful of homemade sauerkraut to asking for better blood work, how to start without overhauling your whole life overnight.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Dr. Oriel brings the science and an honest admission that physicians are often the last people to practice what they preach, with a practical, no-cold-turkey plan for change.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Tune in to start feeding what feeds you — because a thriving microbiome is the backing track behind your hormones, your mood, your sleep, and every stage of vibrant midlife ahead.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [
+          {
+            "text": "About Dr. Oriel Fenwax"
+          }
+        ],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Dr. Oriel Fenwax is an infectious disease physician and Affiliate Associate Professor of Infectious Diseases and Tropical Medicine at the University of South Florida. He is a synthetic guest, invented for testing: no real person stands behind the name.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Driven by his own journey from “I thought I was healthy” to nearly pre-diabetic, Dr. Fenwax launched the “Whole Larder” podcast — a doctor’s year of cooking from scratch, available wherever you listen. He also writes mystery novels and sails on weekends.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Dr. Oriel believes that creativity, connection, and a good sourdough starter are pillars of a long life, and that prevention through diet and rest can do a great deal for overall health.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [
+          {
+            "text": "Episode Highlights"
+          }
+        ],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "inlines": [
+            {
+              "text": "Gut Microbiome, Cravings, and the Addiction Cycle"
+            }
+          ],
+          "type": "h3"
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "blockquote",
+      "quote": "“Three days of junk food is enough to change who lives in your gut. And the new tenants want more of what brought them there. So when you are standing in front of the snack aisle feeling weak, part of that voice is not even yours. The good news is it works the other way too.”",
+      "attribution": "Dr. Oriel",
+      "source": null,
+      "source_url": null,
+      "background": "plain",
+      "background_media_id": null
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "inlines": [
+            {
+              "text": "The Fifth Pillar: Microplastics and Hormone Health"
+            }
+          ],
+          "type": "h3"
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "blockquote",
+      "quote": "“Everybody knows the first four pillars: eat well, move, sleep, have people around you. The fifth one nobody talks about is getting the plastic and the processed food out of your life. Not overnight. One container, one shelf, one shopping trip at a time.”",
+      "attribution": "Dr. Oriel",
+      "source": null,
+      "source_url": null,
+      "background": "plain",
+      "background_media_id": null
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "inlines": [
+            {
+              "text": "Plastics, Fertility, and the Hormone System"
+            }
+          ],
+          "type": "h3"
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "blockquote",
+      "quote": "“Hormones are messengers, and plastics are very good at forging the message. That is the simplest way I can say it. If the body is already in transition, the last thing it needs is extra noise on the line.”",
+      "attribution": "Dr. Oriel",
+      "source": null,
+      "source_url": null,
+      "background": "plain",
+      "background_media_id": null
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "inlines": [
+            {
+              "text": "Sauerkraut, Skin, and the Limits of Probiotics"
+            }
+          ],
+          "type": "h3"
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "blockquote",
+      "quote": "“I started with two forkfuls of sauerkraut a day, mostly to prove a point. A month later my skin looked different and I was not reaching for dessert every night. I am not saying it is magic. I am saying it was cheap and I could do it.”",
+      "attribution": "Heather",
+      "source": null,
+      "source_url": null,
+      "background": "plain",
+      "background_media_id": null
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "inlines": [
+            {
+              "text": "The Triathlete Bacteria Study"
+            }
+          ],
+          "type": "h3"
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "blockquote",
+      "quote": "“There are bacteria that take the lactic acid your muscles make and turn it into fuel. Think about that. The thing that makes your legs burn becomes something your body can run on. Midlife bodies deserve that kind of help as much as athletes do.”",
+      "attribution": "Dr. Oriel",
+      "source": null,
+      "source_url": null,
+      "background": "plain",
+      "background_media_id": null
+    },
+    {
+      "type": "section",
+      "headline": {
+        "inlines": [
+          {
+            "text": "Share this episode"
+          }
+        ],
+        "type": "h2"
+      },
+      "content": [
+        {
+          "type": "p",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "Know someone whose gut has been sending signals? Send them this episode.",
+              "marks": [],
+              "href": null
+            }
+          ]
+        }
+      ],
+      "image": null,
+      "keep_narrow": false
+    },
+    {
+      "type": "faq",
+      "title": "FAQs",
+      "questions": [
+        {
+          "type": "question",
+          "prompt": [
+            {
+              "text": "What are microplastics doing to hormones during perimenopause and menopause?"
+            }
+          ],
+          "answer": [
+            {
+              "type": "p",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "Microplastics and related chemicals from packaging and ultra-processed foods can interfere with the endocrine system, which matters most when hormones are already shifting. Dr. Fenwax suggests storing food in glass or steel and cutting back on packaged foods as a first, concrete step.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "question",
+          "prompt": [
+            {
+              "text": "Who is Dr. Oriel Fenwax?"
+            }
+          ],
+          "answer": [
+            {
+              "type": "p",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "Dr. Oriel Fenwax is a synthetic guest, invented for this test fixture. In the episode he is described as an infectious disease physician whose clinical interest is the microbiome, and who changed his own diet after a routine blood test surprised him.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "question",
+          "prompt": [
+            {
+              "text": "How does a “bad microbiome footprint” cause sugar cravings and make it hard to eat healthy?"
+            }
+          ],
+          "answer": [
+            {
+              "type": "p",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "A gut fed mostly sugar and processed food favors the bacteria that thrive on it, and those bacteria seem to nudge you toward more of the same. Dr. Fenwax explains that the reverse is also true: feed the gut fiber and fermented foods for a few weeks and the cravings ease. A spoonful of raw sauerkraut a day is an easy place to begin.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "question",
+          "prompt": [
+            {
+              "text": "What is the triathlete bacteria study and what does it mean for midlife women’s endurance and energy?"
+            }
+          ],
+          "answer": [
+            {
+              "type": "p",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "Researchers looked at gut bacteria in endurance athletes and found species that turn lactic acid into short-chain fatty acids the body can use as fuel. Dr. Fenwax points out that the same fatty acids also feed the cells lining the gut, which is useful for any midlife body, not just an athlete’s.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "question",
+          "prompt": [
+            {
+              "text": "Do I need a doctor’s referral to get my gut microbiome tested, and will insurance cover it?"
+            }
+          ],
+          "answer": [
+            {
+              "type": "p",
+              "inlines": [
+                {
+                  "type": "text",
+                  "text": "Consumer microbiome tests do not usually need a referral, and insurance rarely pays for them. Dr. Fenwax recommends treating a first result as directional, comparing it with a second independent test before acting on it, and putting diet and fiber ahead of any pill.",
+                  "marks": [],
+                  "href": null
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "layout": "child",
+  "hero_layout": "simple_text",
+  "hero_media_id": "00000000-0000-4000-8000-0000000c0030",
+  "hero_focal_x": null,
+  "hero_focal_y": null,
+  "hero_text": null,
+  "structured_data": null,
+  "search_phrase": null,
+  "subtitle": null,
+  "children": []
+}

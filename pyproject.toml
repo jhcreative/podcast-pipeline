@@ -1,0 +1,19 @@
+# RockstarPodcast — tooling config only (the pipeline is plain modules, not a package).
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# tests/conftest.py collects each test_*.py as ONE item run in its own process (the suites swap modules in
+# sys.modules for fakes); pytest's own Python collection is switched off so nothing is imported twice.
+python_files = []
+markers = [
+  "live: calls the real Anthropic API; run with `pytest -m live` and ANTHROPIC_API_KEY set",
+  "private: needs the private denylist (DENYLIST_PATH); skipped where it is absent",
+]
+addopts = "-m 'not live'"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]

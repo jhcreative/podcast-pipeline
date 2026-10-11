@@ -1,0 +1,13 @@
+[Unit]
+Description=Rockstar Pipeline — poll Drive changes feed (safety drain)
+After=network.target
+
+[Service]
+Type=oneshot
+User=rockstar
+Group=rockstar
+WorkingDirectory=/opt/rockstar-pipeline
+EnvironmentFile=/opt/rockstar-pipeline/.env
+ExecStart=/opt/rockstar-pipeline/venv/bin/python poll_drive_changes.py
+StandardOutput=journal
+StandardError=journal

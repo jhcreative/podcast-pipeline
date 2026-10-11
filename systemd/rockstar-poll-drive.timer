@@ -1,0 +1,15 @@
+[Unit]
+Description=Rockstar Pipeline — drain Drive changes feed every 10 min
+Requires=rockstar-poll-drive.service
+
+[Timer]
+# The Drive push channel only lives ~40 min (Google caps it; Gmail's lasts 7
+# days), and renew_watches runs daily — so the push is dead most of the day.
+# This safety drain runs every 10 min so inbox/visuals drops are picked up
+# regardless of push delivery. The changes feed is cursor-based and self-heals,
+# so polling never double-processes (drain() is file-locked).
+OnBootSec=2min
+OnUnitActiveSec=10min
+
+[Install]
+WantedBy=timers.target

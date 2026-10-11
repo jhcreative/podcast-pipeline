@@ -1,0 +1,66 @@
+# ── Secrets ───────────────────────────────────────────────────────────────────
+.env
+*.pem
+*.key
+token.json
+token_*.json
+*_credentials.json
+service_account.json
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyc
+.venv*/
+venv*/
+scripts/whisperx_env/
+
+# ── Node ──────────────────────────────────────────────────────────────────────
+node_modules/
+scripts/node_modules/
+
+# ── Runtime state (server-generated, not source) ──────────────────────────────
+state/
+pipeline/
+
+# ── Audio / video / binary media ─────────────────────────────────────────────
+Episodes/
+recordings/
+*.m4a
+*.mp4
+*.wav
+*.aac
+*.flac
+*.mkv
+*.mov
+
+# ── Large brand / training assets ────────────────────────────────────────────
+# BrandAssets/ and voice_corpus/ are committed — they're small source files
+# used by render_reel.js and Brand Team prompts. Individual binary exceptions:
+BrandAssets/**/*.psd
+BrandAssets/**/*.ai
+voice_corpus/**/*.m4a
+voice_corpus/**/*.wav
+
+# ── OS / IDE ──────────────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+*.swp
+*.swo
+
+# ── Temp / test artifacts ─────────────────────────────────────────────────────
+.tmp/
+.tmp.drive*/
+*.log
+briefs/
+Daily/
+standup/
+
+# ── Mac launchd (abandoned v1 — never deploy these) ───────────────────────────
+# These files are being deleted; .gitignore entry prevents accidental re-add.
+scripts/com.johnhiemstra.rockstar.pm.plist
+scripts/mac_pm_tick.sh
+scripts/MAC_PM_TICK_INSTALL.md
+
+# SHARE-01: the box address stays out of the repo
+scripts/box.conf

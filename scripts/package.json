@@ -1,0 +1,13 @@
+{
+  "name": "rockstar-podcast-scripts",
+  "version": "0.2.0",
+  "description": "Rockstar Podcast pipeline scripts. See render_reel_PRD.md for spec.",
+  "type": "module",
+  "scripts": {
+    "render": "node render_reel.js",
+    "render-dry": "node render_reel.js --dry-run --verbose"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

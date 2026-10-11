@@ -1,0 +1,13 @@
+[Unit]
+Description=Rockstar Pipeline — renew Drive + Gmail watches (oneshot)
+After=network.target
+
+[Service]
+Type=oneshot
+User=rockstar
+Group=rockstar
+WorkingDirectory=/opt/rockstar-pipeline
+EnvironmentFile=/opt/rockstar-pipeline/.env
+ExecStart=/opt/rockstar-pipeline/venv/bin/python watches/renew_watches.py
+StandardOutput=journal
+StandardError=journal

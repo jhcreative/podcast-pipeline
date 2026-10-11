@@ -1,0 +1,11 @@
+# The pipeline's runtime dependencies, pinned (SHARE-01). The box's venv carries the same set; WhisperX lives in its
+# own venv (scripts/whisperx_env, see scripts/transcribe_*.sh) and is not listed here.
+anthropic==0.104.1
+fastapi==0.143.0
+uvicorn==0.54.0
+google-api-python-client==2.197.0
+google-auth==2.55.0
+google-auth-httplib2==0.4.0
+requests==2.34.2
+Pillow==12.3.0
+playwright==1.60.0

@@ -1,0 +1,87 @@
+{
+  "_source": "SYNTHETIC (SHARE-02): shaped after Gmail API format=full Authentication-Results headers, with invented local parts (***), recipient and relay domains on example.test, documentation IPs (RFC 5737) and invented selectors and subjects. The publisher domains stay because publisher_email pins them. DKIM b= values cut. TRIG-03 AC-10 must pass every case in `pass` and refuse every case in `refuse`.",
+  "pass": [
+    {
+      "label": "E32 'Your Episode is Live' (publisher, Google Workspace)",
+      "from": "Publisher <***@legacy-publisher.example.test>",
+      "subject": "Your Episode is Live | EP 32 GenX Hits Menopause",
+      "authentication_results": [
+        "mx.google.com; dkim=pass header.i=@legacy-publisher.example.test header.s=google header.b=…; arc=pass (i=1); spf=pass (google.com: domain of ***@legacy-publisher.example.test designates 192.0.2.41 as permitted sender) smtp.mailfrom=***@legacy-publisher.example.test; dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=legacy-publisher.example.test; dara=neutral header.i=@pipeline.example.test"
+      ]
+    },
+    {
+      "label": "E33 'Your Episode is Live'",
+      "from": "Publisher <***@legacy-publisher.example.test>",
+      "subject": "Your Episode is Live | EP 33 GenX Hits Menopause",
+      "authentication_results": [
+        "mx.google.com; dkim=pass header.i=@legacy-publisher.example.test header.s=google header.b=…; arc=pass (i=1); spf=pass (google.com: domain of ***@legacy-publisher.example.test designates 192.0.2.41 as permitted sender) smtp.mailfrom=***@legacy-publisher.example.test; dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=legacy-publisher.example.test; dara=neutral header.i=@pipeline.example.test"
+      ]
+    },
+    {
+      "label": "Example Publisher upload notice (Resend / Amazon SES)",
+      "from": "***@publisher.example.test",
+      "subject": "New episode uploaded — GenX Hits Menopause (manual submission)",
+      "authentication_results": [
+        "mx.google.com; dkim=pass header.i=@publisher.example.test header.s=resend header.b=…; dkim=pass header.i=@amazonses.com header.s=synthsel0000000000000000000000ab header.b=…; spf=pass (google.com: domain of ***@send.publisher.example.test designates 192.0.2.185 as permitted sender) smtp.mailfrom=***@send.publisher.example.test; dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=publisher.example.test"
+      ]
+    },
+    {
+      "label": "Newsletter forwarded through Cloudflare Email Routing (two AR headers; Google's is on top)",
+      "from": "Sender <***@legacy-publisher.example.test>",
+      "subject": "Vol. 1: An Invented Newsletter Issue",
+      "authentication_results": [
+        "mx.google.com; dkim=pass header.i=@relay.example.test header.s=cf2024-1 header.b=…; dkim=pass header.i=@cloudflare-email.net header.s=cf2024-1 header.b=…; dkim=pass header.i=@legacy-publisher.example.test header.s=cka header.b=…; dkim=pass header.i=@mail.kit.com header.s=esp1 header.b=…; arc=pass (i=1 spf=pass spfdomain=ckespa.legacy-publisher.example.test dkim=pass dkdomain=legacy-publisher.example.test dkim=pass dkdomain=mail.kit.com dmarc=pass fromdomain=legacy-publisher.example.test); spf=pass (google.com: domain of ***@relay.example.test designates 198.51.100.212 as permitted sender) smtp.mailfrom=***@relay.example.test; dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=legacy-publisher.example.test",
+        "mx.cloudflare.net; dkim=pass header.d=legacy-publisher.example.test header.s=cka header.b=…; dkim=pass header.d=mail.kit.com header.s=esp1 header.b=…; dmarc=pass header.from=legacy-publisher.example.test policy.dmarc=none; spf=none (mx.cloudflare.net: no SPF records found for ***@esp-n.ip31.mail.kit.com) smtp.helo=esp-n.ip31.mail.kit.com; spf=pass (mx.cloudflare.net: domain of ***@ckespa.legacy-publisher.example.test designates 203.0.113.16 as permitted sender) smtp.mailfrom=***@ckespa.legacy-publisher.example.test; arc=none smtp.remote-ip=203.0.113.16"
+      ]
+    }
+  ],
+  "refuse": [
+    {
+      "label": "SYNTHETIC: forged From, p=NONE lets it deliver; Google says dmarc=fail and no aligned dkim",
+      "from": "Publisher <***@legacy-publisher.example.test>",
+      "subject": "Your Episode is Live | EP 34 GenX Hits Menopause",
+      "authentication_results": [
+        "mx.google.com; spf=pass (google.com: domain of ***@attacker.example designates 198.51.100.7 as permitted sender) smtp.mailfrom=***@attacker.example; dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=legacy-publisher.example.test"
+      ]
+    },
+    {
+      "label": "SYNTHETIC: forged pass planted BELOW Google's header",
+      "from": "Publisher <***@legacy-publisher.example.test>",
+      "subject": "Your Episode is Live | EP 34 GenX Hits Menopause",
+      "authentication_results": [
+        "mx.google.com; spf=softfail smtp.mailfrom=***@attacker.example; dmarc=fail (p=NONE) header.from=legacy-publisher.example.test",
+        "mx.google.com; dkim=pass header.i=@legacy-publisher.example.test; dmarc=pass header.from=legacy-publisher.example.test"
+      ]
+    },
+    {
+      "label": "SYNTHETIC: lookalike domain that contains an allowlisted one",
+      "from": "Publisher <***@legacy-publisher.example.test.attacker.example>",
+      "subject": "Your Episode is Live | EP 34 GenX Hits Menopause",
+      "authentication_results": [
+        "mx.google.com; dkim=pass header.i=@legacy-publisher.example.test.attacker.example; dmarc=pass header.from=legacy-publisher.example.test.attacker.example"
+      ]
+    },
+    {
+      "label": "SYNTHETIC: top header not stamped by Google",
+      "from": "Publisher <***@legacy-publisher.example.test>",
+      "subject": "Your Episode is Live | EP 34 GenX Hits Menopause",
+      "authentication_results": [
+        "mx.attacker.example; dkim=pass header.i=@legacy-publisher.example.test; dmarc=pass header.from=legacy-publisher.example.test"
+      ]
+    },
+    {
+      "label": "SYNTHETIC: dkim passes for a different domain only (unaligned), no dmarc",
+      "from": "Publisher <***@legacy-publisher.example.test>",
+      "subject": "Your Episode is Live | EP 34 GenX Hits Menopause",
+      "authentication_results": [
+        "mx.google.com; dkim=pass header.i=@mail.kit.com header.s=esp1; spf=pass smtp.mailfrom=***@mail.kit.com"
+      ]
+    },
+    {
+      "label": "SYNTHETIC: no Authentication-Results at all",
+      "from": "Publisher <***@legacy-publisher.example.test>",
+      "subject": "Your Episode is Live | EP 34 GenX Hits Menopause",
+      "authentication_results": []
+    }
+  ]
+}

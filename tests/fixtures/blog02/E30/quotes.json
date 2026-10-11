@@ -1,0 +1,95 @@
+{
+  "_fixture_note": "SYNTHETIC EPISODE — hand-written for SHARE-02/FIX-01: invented guest, invented quotes, no real person. Shaped like the BLOG-02 fixture it replaces (Brand Team quotes.json plus a `heading` per quote).",
+  "quotes": [
+    {
+      "id": "q01",
+      "speaker": "Dr. Oriel Fenwax",
+      "text": "Three days of junk food is enough to change who lives in your gut. And the new tenants want more of what brought them there. So when you are standing in front of the snack aisle feeling weak, part of that voice is not even yours. The good news is it works the other way too.",
+      "heading": "Gut Microbiome, Cravings, and the Addiction Cycle",
+      "transcript_start_ms": 0,
+      "transcript_end_ms": 0,
+      "seo_keywords": [
+        "gut microbiome, cravings, and the addiction cycle",
+        "perimenopause",
+        "synthetic fixture"
+      ],
+      "seo_rationale": "Synthetic fixture: invented rationale, kept for the field's shape.",
+      "reel_hook": "Three days of junk food is enough to change who lives in your gut.",
+      "reel_candidate": true,
+      "lisa_approved": true,
+      "lisa_note": "Synthetic fixture: invented quote from an invented guest. Ships as-is."
+    },
+    {
+      "id": "q02",
+      "speaker": "Dr. Oriel Fenwax",
+      "text": "Everybody knows the first four pillars: eat well, move, sleep, have people around you. The fifth one nobody talks about is getting the plastic and the processed food out of your life. Not overnight. One container, one shelf, one shopping trip at a time.",
+      "heading": "The Fifth Pillar: Microplastics and Hormone Health",
+      "transcript_start_ms": 0,
+      "transcript_end_ms": 0,
+      "seo_keywords": [
+        "the fifth pillar: microplastics and hormone health",
+        "perimenopause",
+        "synthetic fixture"
+      ],
+      "seo_rationale": "Synthetic fixture: invented rationale, kept for the field's shape.",
+      "reel_hook": "Everybody knows the first four pillars: eat well, move, sleep, have people around you.",
+      "reel_candidate": true,
+      "lisa_approved": true,
+      "lisa_note": "Synthetic fixture: invented quote from an invented guest. Ships as-is."
+    },
+    {
+      "id": "q03",
+      "speaker": "Dr. Oriel Fenwax",
+      "text": "Hormones are messengers, and plastics are very good at forging the message. That is the simplest way I can say it. If the body is already in transition, the last thing it needs is extra noise on the line.",
+      "heading": "Plastics, Fertility, and the Hormone System",
+      "transcript_start_ms": 0,
+      "transcript_end_ms": 0,
+      "seo_keywords": [
+        "plastics, fertility, and the hormone system",
+        "perimenopause",
+        "synthetic fixture"
+      ],
+      "seo_rationale": "Synthetic fixture: invented rationale, kept for the field's shape.",
+      "reel_hook": "Hormones are messengers, and plastics are very good at forging the message.",
+      "reel_candidate": false,
+      "lisa_approved": true,
+      "lisa_note": "Synthetic fixture: invented quote from an invented guest. Ships as-is."
+    },
+    {
+      "id": "q04",
+      "speaker": "Heather Reilly-Hemstra",
+      "text": "I started with two forkfuls of sauerkraut a day, mostly to prove a point. A month later my skin looked different and I was not reaching for dessert every night. I am not saying it is magic. I am saying it was cheap and I could do it.",
+      "heading": "Sauerkraut, Skin, and the Limits of Probiotics",
+      "transcript_start_ms": 0,
+      "transcript_end_ms": 0,
+      "seo_keywords": [
+        "sauerkraut, skin, and the limits of probiotics",
+        "perimenopause",
+        "synthetic fixture"
+      ],
+      "seo_rationale": "Synthetic fixture: invented rationale, kept for the field's shape.",
+      "reel_hook": "I started with two forkfuls of sauerkraut a day, mostly to prove a point.",
+      "reel_candidate": true,
+      "lisa_approved": true,
+      "lisa_note": "Synthetic fixture: invented quote from an invented guest. Ships as-is."
+    },
+    {
+      "id": "q05",
+      "speaker": "Dr. Oriel Fenwax",
+      "text": "There are bacteria that take the lactic acid your muscles make and turn it into fuel. Think about that. The thing that makes your legs burn becomes something your body can run on. Midlife bodies deserve that kind of help as much as athletes do.",
+      "heading": "The Triathlete Bacteria Study",
+      "transcript_start_ms": 0,
+      "transcript_end_ms": 0,
+      "seo_keywords": [
+        "the triathlete bacteria study",
+        "perimenopause",
+        "synthetic fixture"
+      ],
+      "seo_rationale": "Synthetic fixture: invented rationale, kept for the field's shape.",
+      "reel_hook": "There are bacteria that take the lactic acid your muscles make and turn it into fuel.",
+      "reel_candidate": true,
+      "lisa_approved": true,
+      "lisa_note": "Synthetic fixture: invented quote from an invented guest. Ships as-is."
+    }
+  ]
+}

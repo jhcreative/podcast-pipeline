@@ -1,0 +1,2 @@
+# The pipeline box, as ssh reaches it. Copy to scripts/box.conf (gitignored) and fill in.
+SERVER="root@box.example.test"
