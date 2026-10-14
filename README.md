@@ -1,6 +1,6 @@
 # podcast-pipeline
 
-A production LLM pipeline that turns each recorded episode of ***Gen X Hits Menopause***
+Production LLM pipeline that turns each recorded episode of ***Gen X Hits Menopause***
 (hosted by Heather Reilly Hiemstra of Rockstar Belnds) into everything the episode needs to go out: show
 notes, a blog post, 9:16 reels, quote-card carousels, captions and a thank-you draft for the guest. Claude writes
 the prose. Code writes everything fixed, gates check the model's output, and a person approves and sends.
