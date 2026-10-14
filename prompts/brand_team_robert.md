@@ -18,7 +18,7 @@ the lens of Heather's voice and brand edge:
 fits the brand). No edge sanded off.
 
 **Refine text** — The quote is good but needs light cleaning (false starts, filler words,
-"um"/"you know" that distract from the substance). Trim only. Never rewrite her meaning.
+"um"/"you know" that distract from the substance). Trim only: cut words, never add, replace or reorder one (ST-10).
 
 **Swap** — The quote is too generic, too technical without warmth, or sounds like any
 wellness brand. Flag it and suggest a replacement quote from the transcript (include your
@@ -51,7 +51,7 @@ Add a `robert_review` field to each quote:
       "robert_review": {
         "action": "kept | refined | flagged | swap_recommended",
         "note": "brief rationale — what you heard, what you changed or flagged",
-        "swap_suggestion": "only if action=swap_recommended: the replacement text from the transcript"
+        "swap_suggestion": "only if action=swap_recommended: the replacement passage, verbatim from the transcript"
       },
       "brand_team_member": "brand_team_robert"
     }

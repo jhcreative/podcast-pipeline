@@ -1,4 +1,5 @@
-# RockstarPodcast — tooling config only (the pipeline is plain modules, not a package).
+# RockstarPodcast — tooling config. The pipeline is the `rockstar` package, run from the checkout with `python -m`;
+# it is not installed, so there is no [project] table.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -17,3 +18,8 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# E501: long assertion messages and fixture lines read better whole (backlog: wrap them).
+# E402: a suite installs its fakes (sys.modules, env) BEFORE it imports the pipeline, by design.
+"tests/*" = ["E501", "E402"]

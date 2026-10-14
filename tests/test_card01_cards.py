@@ -19,32 +19,42 @@ would silently stop running for the next dev.
 """
 
 import json
-import os
 import sys
 import tempfile
 from pathlib import Path
 
 WORKTREE = Path(__file__).resolve().parent.parent  # the repo root: tests/ is one level down
-sys.path.insert(0, str(WORKTREE / "quote_cards"))
+sys.path.insert(0, str(WORKTREE))
 
-import quote_source  # noqa: E402
-
+from rockstar.cards import quote_source  # noqa: E402
 
 # ── fixtures: the two schema generations that exist in the wild ────────────────
 
 # E27+ shape.
-NEW_SCHEMA = {"quotes": [
-    {"id": "q01", "speaker": "Dr. Thessaly Brindlequist", "text": "Normal blood work "
-     "does not always mean optimum health.", "transcript_start_ms": 1000},
-    {"id": "q02", "speaker": "Dr. Thessaly Brindlequist", "text": "Do not wait."},
-]}
+NEW_SCHEMA = {
+    "quotes": [
+        {
+            "id": "q01",
+            "speaker": "Dr. Thessaly Brindlequist",
+            "text": "A normal lab report does not always mean you feel well.",
+            "transcript_start_ms": 1000,
+        },
+        {"id": "q02", "speaker": "Dr. Thessaly Brindlequist", "text": "Do not wait."},
+    ]
+}
 
 # E23–E25 shape: no id, no text.
-OLD_SCHEMA = {"quotes": [
-    {"index": 1, "speaker": "Juniper Larkspirelle", "quote_text_clean": "Plants are the "
-     "oldest medicine we have.", "topic_slug": "plants"},
-    {"index": 2, "speaker": "Juniper Larkspirelle", "quote_text_clean": "Start where you are."},
-]}
+OLD_SCHEMA = {
+    "quotes": [
+        {
+            "index": 1,
+            "speaker": "Juniper Larkspirelle",
+            "quote_text_clean": "Plants are the oldest medicine we have.",
+            "topic_slug": "plants",
+        },
+        {"index": 2, "speaker": "Juniper Larkspirelle", "quote_text_clean": "Start where you are."},
+    ]
+}
 
 
 def _write(tmp, payload):
@@ -61,7 +71,7 @@ def test_source_new_schema():
     with tempfile.TemporaryDirectory() as tmp:
         qs = quote_source.load_quotes(_write(tmp, NEW_SCHEMA))
     assert [q["id"] for q in qs] == ["q01", "q02"]
-    assert qs[0]["text"].startswith("Normal blood work")
+    assert qs[0]["text"].startswith("A normal lab report")
     assert qs[0]["speaker"] == "Dr. Thessaly Brindlequist"
     print("  ok  source: new schema (id + text)")
 
@@ -112,8 +122,7 @@ def test_source_rejects_missing_speaker():
 
 def test_source_rejects_duplicate_ids():
     """Duplicate ids would collide in the output filenames, silently overwriting."""
-    bad = {"quotes": [{"id": "q01", "speaker": "X", "text": "One."},
-                      {"id": "q01", "speaker": "X", "text": "Two."}]}
+    bad = {"quotes": [{"id": "q01", "speaker": "X", "text": "One."}, {"id": "q01", "speaker": "X", "text": "Two."}]}
     with tempfile.TemporaryDirectory() as tmp:
         _expect_exit(lambda: quote_source.load_quotes(_write(tmp, bad)), "duplicate")
     print("  ok  source: duplicate ids are a hard failure, not a silent overwrite")
@@ -123,14 +132,16 @@ def test_source_rejects_duplicate_ids():
 
 
 def test_typographic_apostrophes():
-    import render_cards as rc
+    from rockstar.cards import render_cards as rc
+
     got = rc._typographic("You're the smartest doctor. It doesn't matter.")
     assert "’" in got and "'" not in got, got
     print("  ok  typographic: straight apostrophes become typographic marks")
 
 
 def test_typographic_paired_quotes():
-    import render_cards as rc
+    from rockstar.cards import render_cards as rc
+
     got = rc._typographic('She said "no" firmly.')
     assert "“no”" in got, got
     print("  ok  typographic: double quotes pair as open/close")
@@ -139,7 +150,8 @@ def test_typographic_paired_quotes():
 def test_rehang_dash():
     """A slide must not end on a dangling em dash; the dash belongs to the thought
     it introduces. Concatenation is unchanged, so verbatim still holds."""
-    import render_cards as rc
+    from rockstar.cards import render_cards as rc
+
     parts = rc._rehang_dash(["labs fall in that range —", "but optimum health differs"])
     assert parts[0].endswith("range"), parts[0]
     assert parts[1].startswith("— but"), parts[1]
@@ -151,34 +163,39 @@ def test_rehang_dash():
 
 
 def _fitter(page, mark="watermark"):
-    import render_cards as rc
+    from rockstar.cards import render_cards as rc
+
     return rc.Fitter(page, "B", "Dr. Thessaly Brindlequist", mark)
 
 
 def _with_page(fn):
     from playwright.sync_api import sync_playwright
-    import card_format as fmt
+
+    from rockstar.cards import card_format as fmt
+
     with sync_playwright() as pw:
         b = pw.chromium.launch()
-        page = b.new_page(viewport={"width": fmt.CANVAS, "height": fmt.CANVAS},
-                          device_scale_factor=1)
+        page = b.new_page(viewport={"width": fmt.CANVAS, "height": fmt.CANVAS}, device_scale_factor=1)
         try:
             return fn(page)
         finally:
             b.close()
 
 
-LONG = ("Normal blood work does not always mean optimum health. So many women come in "
-        "and by the time they find me, they've seen about five different specialists. "
-        "Many women are told that everything is fine because their labs fall within that "
-        "broad reference range — but optimum health requires looking more closely at your "
-        "hormones, your thyroid, your insulin, your inflammation, your nutrients, and your "
-        "metabolic markers. Our body functions as a whole entire unit.")
+LONG = (
+    "A normal lab report does not always mean you feel well. Many people arrive here "
+    "after a long year of appointments, each one ending with the same short answer. "
+    "They are told that everything is fine because each number sits inside a wide "
+    "reference range — but feeling well asks us to look more closely at sleep, at "
+    "stress, at what we eat, at how we move, at the people around us, and at the "
+    "small habits of a day. The body keeps its own careful accounts."
+)
 
 
 def test_split_is_verbatim_and_fits():
     """The two guarantees together: nothing is lost, and every slide actually fits.
     Fixed type means the only remedy for overflow is another slide."""
+
     def run(page):
         f = _fitter(page)
         slides = f.split(LONG)
@@ -188,26 +205,30 @@ def test_split_is_verbatim_and_fits():
         for i, s in enumerate(slides, 1):
             assert f.fits(s), f"slide {i} does not fit"
         return len(slides)
+
     n = _with_page(run)
     print(f"  ok  split: {n} slides, concatenation verbatim, every slide fits")
 
 
-# E29 q03: greedy packing strands the closing fragment "It's way beyond that."
+# A long quote's closing fragment can end up alone on its own slide under greedy packing.
 # on its own slide. This is the shape rebalancing exists for.
-# Re-tuned for IBM Plex (ADR-0015): under Plex the old E29 fixture no longer strands a
-# remainder. E25 q04 (Juniper Larkspirelle) does: greedy leaves its last slide ~11% full;
-# rebalancing lifts it to ~45% at the same slide count.
-ORPHANING = "When you work with these ancient plant spirits who have been around since the beginning of time, they're like: remember, you used to be a part of nature. You used to operate at the pace of a tree. You didn't have to go, go, go. All you have to do is just exist and be yourself. There's no one else like you."
+# Re-tuned for IBM Plex (ADR-0015): this invented quote strands a remainder under greedy packing (a nearly empty
+# last slide); rebalancing lifts it at the same slide count.
+ORPHANING = "When you sit with these old garden rows that have been here longer than any of us, they seem to say: slow down, you were once a part of this too. You used to move at the pace of the seasons. You did not have to hurry, hurry, hurry. All you have to do is be here and be yourself. There is nobody else like you."
 
 
 def test_rebalance_fixes_a_stranded_remainder():
     """Greedy fills each slide to the brim and dumps what's left on the last one.
     Rebalancing pushes units backward at CONSTANT slide count — nothing is shrunk
     to achieve it."""
+
     def run(page):
         f = _fitter(page)
-        units = f._explode_overlong(__import__("render_cards")._SENT.split(
-            __import__("render_cards")._typographic(ORPHANING).strip()))
+        units = f._explode_overlong(
+            __import__("rockstar.cards.render_cards", fromlist=["_"])._SENT.split(
+                __import__("rockstar.cards.render_cards", fromlist=["_"])._typographic(ORPHANING).strip()
+            )
+        )
         greedy, cur = [], []
         for u in units:
             if not cur or f.fits(" ".join(cur + [u])):
@@ -223,6 +244,7 @@ def test_rebalance_fixes_a_stranded_remainder():
         assert len(after_groups) == len(greedy), "rebalance changed the slide count"
         assert after > before, f"rebalance did not improve: {before:.2f} → {after:.2f}"
         return before, after
+
     before, after = _with_page(run)
     print(f"  ok  rebalance: emptiest slide {before:.0%} → {after:.0%}, same slide count")
 
@@ -235,23 +257,24 @@ def test_thin_final_slide_is_allowed_when_it_is_a_whole_sentence():
 
     LONG is exactly this case: units measure ~[.22 .33 .89 .22] (Plex, ADR-0015) and both u2+u3 and
     u3+u4 overflow."""
+
     def run(page):
         f = _fitter(page)
         slides = f.split(LONG)
         return slides, [f.fill(s) for s in slides]
+
     slides, fills = _with_page(run)
     assert min(fills) < 0.3, "fixture no longer exercises the thin-slide case"
     for i, s in enumerate(slides, 1):
         assert s.rstrip().endswith((".", "!", "?", "…")), f"slide {i} ends mid-sentence: {s[-40:]!r}"
-    print(f"  ok  thin slide: fills {[f'{x:.0%}' for x in fills]}, every slide ends "
-          f"on a complete sentence")
+    print(f"  ok  thin slide: fills {[f'{x:.0%}' for x in fills]}, every slide ends on a complete sentence")
 
 
 def test_short_quote_stays_one_slide():
     def run(page):
         f = _fitter(page)
-        return f.split("Do not wait until your period stops to pay attention to your "
-                       "symptoms. You live in your body.")
+        return f.split("Do not wait for one test to tell you that something is wrong. You know your own body.")
+
     slides = _with_page(run)
     assert len(slides) == 1, slides
     print("  ok  split: a short quote is not split at canon settings")
@@ -280,11 +303,13 @@ def main() -> int:
     ]
     try:
         import playwright  # noqa: F401
+
         tests = pure + browser
     except ImportError:
         tests = pure
-        print("!! playwright absent — SKIPPING 4 split tests. These are the fit "
-              "guarantees; this run does NOT cover them.")
+        print(
+            "!! playwright absent — SKIPPING 4 split tests. These are the fit guarantees; this run does NOT cover them."
+        )
 
     failed = 0
     print("CARD-01 quote source + split invariants — test run")
@@ -297,6 +322,7 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             failed += 1
             import traceback
+
             print(f"  ERROR {t.__name__}: {type(e).__name__}: {e}")
             traceback.print_exc()
     print(f"\n{len(tests) - failed} passed, {failed} failed (of {len(tests)})")

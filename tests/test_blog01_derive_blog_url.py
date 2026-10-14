@@ -29,6 +29,8 @@ import sys
 import types
 from pathlib import Path
 
+import _swap  # noqa: E402 — tests/: fakes go on the package too
+
 WORKTREE = Path(__file__).resolve().parent.parent  # the repo root: tests/ is one level down
 sys.path.insert(0, str(WORKTREE))
 BASE = "https://rockstarblends.com/blog"  # BLOG-02: Tailor serves /blog; /the-blog 301s
@@ -46,17 +48,24 @@ def _install_anthropic_stub():
             pass
 
     anthropic.Anthropic = Anthropic
-    sys.modules["anthropic"] = anthropic
+    _swap.put("anthropic", anthropic)
 
 
 def _pf():
     """Import jobs.publish_finalize with heavy I/O-boundary modules stubbed. Only
     the pure _derive_blog_url is exercised; nothing here calls Drive/anthropic."""
     _install_anthropic_stub()
-    for name in ("calendar_client", "drive_client", "gmail_client", "publisher_email", "db"):
-        sys.modules.setdefault(name, types.ModuleType(name))
-    sys.modules.pop("jobs.publish_finalize", None)
-    import jobs.publish_finalize as pf
+    for name in (
+        "rockstar.clients.calendar_client",
+        "rockstar.clients.drive_client",
+        "rockstar.clients.gmail_client",
+        "rockstar.clients.publisher_email",
+        "rockstar.service.db",
+    ):
+        _swap.setdefault(name, types.ModuleType(name))
+    _swap.pop("rockstar.jobs.publish_finalize", None)
+    from rockstar.jobs import publish_finalize as pf
+
     importlib.reload(pf)
     return pf
 
@@ -67,10 +76,10 @@ PF = _pf()
 def test_apostrophe_removed_not_hyphenated():
     # THE bug: "Don't" must slug to "dont", NEVER "don-t".
     got = PF._derive_blog_url("Don't Wait for the Stop | Optimize Hormones Before Perimenopause", 29)
-    expected = (f"{BASE}/dont-wait-for-the-stop-optimize-hormones-before-perimenopause")
+    expected = f"{BASE}/dont-wait-for-the-stop-optimize-hormones-before-perimenopause"
     assert got == expected, f"\n got={got}\nwant={expected}"
     assert "don-t" not in got, f"apostrophe was hyphenated, not removed: {got}"
-    print("  AC1/AC3 apostrophe: \"Don't Wait…\" → dont-wait… (not don-t) ✓")
+    print('  AC1/AC3 apostrophe: "Don\'t Wait…" → dont-wait… (not don-t) ✓')
 
 
 def test_curly_apostrophe_also_removed():
@@ -124,6 +133,7 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             failed += 1
             import traceback
+
             print(f"  ERROR {t.__name__}: {type(e).__name__}: {e}")
             traceback.print_exc()
     print(f"\n{len(tests) - failed} passed, {failed} failed (of {len(tests)})")

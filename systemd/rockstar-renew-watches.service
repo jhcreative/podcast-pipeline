@@ -8,6 +8,6 @@ User=rockstar
 Group=rockstar
 WorkingDirectory=/opt/rockstar-pipeline
 EnvironmentFile=/opt/rockstar-pipeline/.env
-ExecStart=/opt/rockstar-pipeline/venv/bin/python watches/renew_watches.py
+ExecStart=/opt/rockstar-pipeline/venv/bin/python -m rockstar.service.renew_watches
 StandardOutput=journal
 StandardError=journal

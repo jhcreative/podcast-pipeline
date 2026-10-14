@@ -20,15 +20,13 @@ that needs artifacts a fresh clone lacks is a test that quietly stops running. T
 two apple_summary shapes below are transcribed from the real E24 and E25 files.
 """
 
-import os
 import sys
 from pathlib import Path
 
 WORKTREE = Path(__file__).resolve().parent.parent  # the repo root: tests/ is one level down
-sys.path.insert(0, str(WORKTREE / "quote_cards"))
+sys.path.insert(0, str(WORKTREE))
 
-import make_captions as mc  # noqa: E402
-
+from rockstar.cards import make_captions as mc  # noqa: E402
 
 # ── fixtures ───────────────────────────────────────────────────────────────────
 
@@ -65,12 +63,16 @@ Info responses sheet. PM also swept Heather's Gmail — no results.
 """
 
 CLEAN_TAGS = ["#GenXHitsMenopause", "#MenopauseHealth", "#GenXWomen"]
-QUOTE = "Normal blood work does not always mean optimum health."
+QUOTE = "A normal lab report does not always mean you feel well."
 
 
-def _caption(opening="Your labs can be normal and you can still feel wrong.",
-             intro="Juniper Larkspirelle is a Plant Medicine Guide and Herbalist.",
-             guest="Juniper Larkspirelle", ep=25, tags=None):
+def _caption(
+    opening="Your labs can be normal and you can still feel wrong.",
+    intro="Juniper Larkspirelle is a Plant Medicine Guide and Herbalist.",
+    guest="Juniper Larkspirelle",
+    ep=25,
+    tags=None,
+):
     return mc.assemble(opening, intro, guest, ep, tags or CLEAN_TAGS)
 
 
@@ -89,10 +91,15 @@ def test_about_parser_real_bio():
 def test_about_parser_heading_levels():
     """ADR-0008 made hand-edited Drive artifacts authoritative, so the parser has to
     read what a human typed — including a bare 'About X' with no heading marks."""
-    for heading in ("## About Juniper Larkspirelle", "About Juniper Larkspirelle",
-                    "#### About Juniper Larkspirelle", "### about Juniper Larkspirelle"):
-        guest, about = mc.extract_about(f"{heading}\n\nA real bio paragraph here that "
-                                        f"is comfortably longer than the length floor.")
+    for heading in (
+        "## About Juniper Larkspirelle",
+        "About Juniper Larkspirelle",
+        "#### About Juniper Larkspirelle",
+        "### about Juniper Larkspirelle",
+    ):
+        guest, about = mc.extract_about(
+            f"{heading}\n\nA real bio paragraph here that is comfortably longer than the length floor."
+        )
         assert guest == "Juniper Larkspirelle", (heading, guest)
         assert about.startswith("A real bio"), (heading, about[:40])
     print("  ok  About parser: tolerates heading level and case")
@@ -158,7 +165,7 @@ def test_bio_pending_real_bio_is_not():
 def test_bio_pending_empty_and_stub():
     assert mc.bio_is_pending(None) is True
     assert mc.bio_is_pending("") is True
-    assert mc.bio_is_pending("TBD") is True          # too short to be a bio
+    assert mc.bio_is_pending("TBD") is True  # too short to be a bio
     print("  ok  pending bio: empty / missing / stub all treated as pending")
 
 
@@ -210,28 +217,20 @@ def test_gate_passes_clean_caption():
 def test_gate_hashtag_count():
     """ADR-0007's cap, asserted at generation time — the check CAP-01 asked for on
     the reel captions and never got."""
-    for tags in (["#GenXHitsMenopause", "#A"],
-                 ["#GenXHitsMenopause", "#A", "#B", "#C", "#D"]):
-        _expect_fail(
-            lambda t=tags: mc.assert_caption_wellformed(
-                _caption(tags=t), t, QUOTE, "count"),
-            "3–4")
+    for tags in (["#GenXHitsMenopause", "#A"], ["#GenXHitsMenopause", "#A", "#B", "#C", "#D"]):
+        _expect_fail(lambda t=tags: mc.assert_caption_wellformed(_caption(tags=t), t, QUOTE, "count"), "3–4")
     print("  ok  gate: rejects fewer than 3 and more than 4 hashtags")
 
 
 def test_gate_requires_show_tag():
     tags = ["#MenopauseHealth", "#GenXWomen", "#HormoneHealth"]
-    _expect_fail(
-        lambda: mc.assert_caption_wellformed(_caption(tags=tags), tags, QUOTE, "show"),
-        "show tag")
+    _expect_fail(lambda: mc.assert_caption_wellformed(_caption(tags=tags), tags, QUOTE, "show"), "show tag")
     print("  ok  gate: rejects a set with no show tag")
 
 
 def test_gate_malformed_hashtag():
     tags = ["#GenXHitsMenopause", "MenopauseHealth", "#two words"]
-    _expect_fail(
-        lambda: mc.assert_caption_wellformed(_caption(tags=tags), tags, QUOTE, "malformed"),
-        "malformed")
+    _expect_fail(lambda: mc.assert_caption_wellformed(_caption(tags=tags), tags, QUOTE, "malformed"), "malformed")
     print("  ok  gate: rejects a missing # and an embedded space")
 
 
@@ -239,9 +238,7 @@ def test_gate_rejects_url():
     """Captions here never carry platform links, and a model-written URL can be
     subtly wrong — this publisher has supplied wrong Apple URLs before."""
     bad = _caption(opening="Listen at https://podcasts.apple.com/x")
-    _expect_fail(
-        lambda: mc.assert_caption_wellformed(bad, CLEAN_TAGS, QUOTE, "url"),
-        "url")
+    _expect_fail(lambda: mc.assert_caption_wellformed(bad, CLEAN_TAGS, QUOTE, "url"), "url")
     print("  ok  gate: rejects any URL")
 
 
@@ -249,17 +246,13 @@ def test_gate_rejects_music_credit():
     """The Uppbeat credit belongs to the reels' licensed track. A quote card is
     silent; crediting it here would be a false attribution (ADR-0013)."""
     bad = _caption(opening="🎵 from #uppbeat — Show Me by Daze")
-    _expect_fail(
-        lambda: mc.assert_caption_wellformed(bad, CLEAN_TAGS, QUOTE, "music"),
-        "music")
+    _expect_fail(lambda: mc.assert_caption_wellformed(bad, CLEAN_TAGS, QUOTE, "music"), "music")
     print("  ok  gate: rejects a music/audio credit on a silent card")
 
 
 def test_gate_rejects_blank_connect_line():
     bad = _caption().replace(mc.SOCIAL_PLACEHOLDER, "")
-    _expect_fail(
-        lambda: mc.assert_caption_wellformed(bad, CLEAN_TAGS, QUOTE, "handle"),
-        "placeholder")
+    _expect_fail(lambda: mc.assert_caption_wellformed(bad, CLEAN_TAGS, QUOTE, "handle"), "placeholder")
     print("  ok  gate: rejects a connect line with neither handle nor placeholder")
 
 
@@ -273,9 +266,7 @@ def test_gate_accepts_a_real_handle():
 def test_gate_rejects_opening_that_restates_the_quote():
     """The quote is already on the image; repeating it burns the one visible line."""
     bad = _caption(opening=QUOTE)
-    _expect_fail(
-        lambda: mc.assert_caption_wellformed(bad, CLEAN_TAGS, QUOTE, "restate"),
-        "restates")
+    _expect_fail(lambda: mc.assert_caption_wellformed(bad, CLEAN_TAGS, QUOTE, "restate"), "restates")
     print("  ok  gate: rejects an opening that restates the quote verbatim")
 
 
@@ -287,13 +278,17 @@ def test_novel_terms_flags_borrowed_episode_topics():
     cycle, and perimenopause" — all true of the episode, none of it in a bio that
     says "female-specific biology" and names joint pain. Nothing inflated, but
     sharpen-don't-extend was broken, and no structural gate can see it."""
-    about = ("Dr. Saffi Velloquin is a phytopharmacist specializing in cannabinoid "
-             "science and female-specific physiology. Her career began in an "
-             "invented botanical laboratory, where she led a small study of "
-             "plant extracts for joint pain.")
-    intro = ("Dr. Saffi Velloquin is a phytopharmacist whose work spans cannabinoid "
-             "science and female-specific biology — including estrogen, the menstrual "
-             "cycle, and perimenopause.")
+    about = (
+        "Dr. Saffi Velloquin is a phytopharmacist specializing in cannabinoid "
+        "science and female-specific physiology. Her career began in an "
+        "invented botanical laboratory, where she led a small study of "
+        "plant extracts for joint pain."
+    )
+    intro = (
+        "Dr. Saffi Velloquin is a phytopharmacist whose work spans cannabinoid "
+        "science and female-specific biology — including estrogen, the menstrual "
+        "cycle, and perimenopause."
+    )
     novel = mc.novel_terms(intro, about)
     for term in ("estrogen", "menstrual", "perimenopause"):
         assert term in novel, (term, novel)
@@ -301,12 +296,16 @@ def test_novel_terms_flags_borrowed_episode_topics():
 
 
 def test_novel_terms_quiet_on_faithful_paraphrase():
-    about = ("Dr. Saffi Velloquin is a phytopharmacist and women's health strategist "
-             "with a doctorate in plant chemistry. She spent over a decade across "
-             "laboratory research and patient education.")
-    intro = ("Dr. Saffi Velloquin is a phytopharmacist and women's health strategist "
-             "with a doctorate in plant chemistry, spanning a decade across "
-             "laboratory research and patient education.")
+    about = (
+        "Dr. Saffi Velloquin is a phytopharmacist and women's health strategist "
+        "with a doctorate in plant chemistry. She spent over a decade across "
+        "laboratory research and patient education."
+    )
+    intro = (
+        "Dr. Saffi Velloquin is a phytopharmacist and women's health strategist "
+        "with a doctorate in plant chemistry, spanning a decade across "
+        "laboratory research and patient education."
+    )
     novel = mc.novel_terms(intro, about)
     assert novel == [] or novel == ["spanning"], novel
     print("  ok  novel terms: a faithful paraphrase stays quiet")
@@ -350,6 +349,7 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             failed += 1
             import traceback
+
             print(f"  ERROR {t.__name__}: {type(e).__name__}: {e}")
             traceback.print_exc()
     print(f"\n{len(tests) - failed} passed, {failed} failed (of {len(tests)})")

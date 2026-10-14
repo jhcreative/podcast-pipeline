@@ -1,0 +1,10 @@
+{
+  "bpm": 120.0,
+  "beat_period_sec": 0.5,
+  "beat_offset_sec": 0.0,
+  "bar_period_sec": 2.0,
+  "beat_count": 120,
+  "analyzed_file": "theme.mp3",
+  "analyzed_at": "2026-10-12",
+  "note": "public stand-in: the show's theme is licensed music and stays private; this grid matches the stand-in chord"
+}

@@ -14,22 +14,24 @@ import sys
 import types
 from pathlib import Path
 
+import _swap  # noqa: E402 — tests/: fakes go on the package too
+
 REPO = Path(__file__).resolve().parent.parent  # the repo root: tests/ is one level down
 sys.path.insert(0, str(REPO))
 
-import episode_files as ef  # noqa: E402
 import test_title01_gen_gate as t1  # noqa: E402  (its Round-1 harness: real _run_pipeline, I/O stubbed)
 
+from rockstar.content import episode_files as ef  # noqa: E402
 
 # Jen's matrix from the story: filename → processable?
 MATRIX = {
     "E30-perimenopause-jane.m4a": True,
     "E30_perimenopause_jane.m4a": True,
-    "E30.m4a": True,                      # policy (a): accepted, safe slug
-    "E30 perimenopause jane.m4a": True,   # space separator accepted
-    "E30-.m4a": True,                     # separator + empty slug: safe slug
-    "random-voice-memo.m4a": False,       # no E-number → loud
-    "E30-guest.mp3": False,               # audio transcription can't read → loud
+    "E30.m4a": True,  # policy (a): accepted, safe slug
+    "E30 perimenopause jane.m4a": True,  # space separator accepted
+    "E30-.m4a": True,  # separator + empty slug: safe slug
+    "random-voice-memo.m4a": False,  # no E-number → loud
+    "E30-guest.mp3": False,  # audio transcription can't read → loud
     "E300x.m4a": False,
     "Episode 30.m4a": False,
 }
@@ -53,12 +55,17 @@ def test_problem_hints_are_actionable():
 
 def test_one_extension_list():
     import ast
-    for mod in ("drive_changes.py", "drive_client.py", "jobs/round_1.py"):
+
+    for mod in ("rockstar/clients/drive_changes.py", "rockstar/clients/drive_client.py", "rockstar/jobs/round_1.py"):
         src = (REPO / mod).read_text()
         tree = ast.parse(src)
-        literal_sets = [n for n in ast.walk(tree) if isinstance(n, ast.Assign)
-                        and any(getattr(t, "id", "") == "_AUDIO_EXTENSIONS" for t in n.targets)
-                        and isinstance(n.value, (ast.Set, ast.Call))]
+        literal_sets = [
+            n
+            for n in ast.walk(tree)
+            if isinstance(n, ast.Assign)
+            and any(getattr(t, "id", "") == "_AUDIO_EXTENSIONS" for t in n.targets)
+            and isinstance(n.value, (ast.Set, ast.Call))
+        ]
         assert not literal_sets, f"{mod} defines its own _AUDIO_EXTENSIONS; import episode_files instead"
 
 
@@ -71,7 +78,7 @@ def test_slug_never_untitled():
 def test_season_current_and_previous():
     r1 = _r1()
     counter = {"next_episode_number": 33, "next_season_episode": 8, "current_season": 2}
-    assert r1._season_for(32, counter) == (2, 7)   # E32 is S2E7 (as the pipeline logged it)
+    assert r1._season_for(32, counter) == (2, 7)  # E32 is S2E7 (as the pipeline logged it)
     assert r1._season_for(26, counter) == (2, 1)
     assert r1._season_for(25, counter) == (1, 25)
     assert r1._season_for(19, counter) == (1, 19)
@@ -102,7 +109,7 @@ def _run_with_inbox(names):
     alerts = []
     gm = types.ModuleType("gmail_client")
     gm.send_pipeline_alert = lambda **k: alerts.append(k)
-    sys.modules["gmail_client"] = gm
+    _swap.put("rockstar.clients.gmail_client", gm)
     try:
         r1._run_pipeline(job_id=1, payload={})
     except r1.PermanentFailure as exc:
@@ -151,11 +158,112 @@ def test_reprocess_chains_to_the_next_old_episode():
     enq = []
     r1.db.enqueue = lambda *a, **k: enq.append((a, k)) or 77
     r1._run_pipeline(job_id=1, payload={})
-    assert [f["name"] for f in inbox] == ["E13-heather-john.m4a"], inbox   # E6 processed and moved
-    assert len(enq) == 1 and enq[0][0][0] == "ROUND_1", enq                  # E13 chained, not stranded
+    assert [f["name"] for f in inbox] == ["E13-heather-john.m4a"], inbox  # E6 processed and moved
+    assert len(enq) == 1 and enq[0][0][0] == "ROUND_1", enq  # E13 chained, not stranded
     sched = t1._read_schedule(state)
     e6 = [e for e in sched["episodes"] if e["episode_number"] == 6]
     assert e6 and e6[0]["season"] == 1 and e6[0]["season_episode"] == 6, sched
+
+
+def test_reprocess_reopens_a_finished_entry_for_the_visuals_trigger():
+    """E6/E13, 2026-10-11: a back-catalogue episode with an old schedule entry (no slug, pipeline_done) ran Round 1,
+    but the entry kept slug '' and pipeline_done=True, so dropping the visuals never started Phase 2 (TRIG-02 matches
+    the folder's slug and skips a finished entry). Round 1 re-run means Phase 2 is wanted again."""
+    import json
+
+    state = t1._fresh_state()
+    old = {
+        "episode_number": 6,
+        "season": 1,
+        "season_episode": 6,
+        "episode_code": "E6",
+        "slug": "",
+        "folder_name": "E6",
+        "status": "done",
+        "pipeline_done": True,
+        "apple_url": "https://podcasts.apple.com/x?i=1",
+        "spotify_url": "https://open.spotify.com/episode/y",
+    }
+    (state / "publication_schedule.json").write_text(json.dumps({"episodes": [old]}), encoding="utf-8")
+    r1, drive = t1._load_round1_with_stubs(state, {"title": "A | B", "hook": "A", "topic": "B"})
+    t1._patch_scripts(r1)
+    drive.list_audio_in_inbox = lambda: [{"id": "e6", "name": "E6-Tamsin.m4a"}]
+    drive.find_episode_folder = lambda code: None
+    r1._run_pipeline(job_id=1, payload={})
+    (e6,) = [e for e in t1._read_schedule(state)["episodes"] if e["episode_number"] == 6]
+    assert e6["slug"] == "tamsin" and e6["folder_name"] == "E6-tamsin", e6  # the folder TRIG-02 will see
+    assert e6["pipeline_done"] is False and e6["status"] == "reprocessed", e6
+    assert e6["apple_url"] == old["apple_url"] and e6["spotify_url"] == old["spotify_url"], e6  # known links kept
+
+
+def _reprocess_with_folder(folder):
+    import json
+
+    state = t1._fresh_state()
+    old = {
+        "episode_number": 6,
+        "season": 1,
+        "season_episode": 6,
+        "episode_code": "E6",
+        "slug": "",
+        "folder_name": "E6",
+        "status": "done",
+        "pipeline_done": True,
+    }
+    (state / "publication_schedule.json").write_text(json.dumps({"episodes": [old]}), encoding="utf-8")
+    r1, drive = t1._load_round1_with_stubs(state, {"title": "A | B", "hook": "A", "topic": "B"})
+    t1._patch_scripts(r1)
+    drive.list_audio_in_inbox = lambda: [{"id": "e6", "name": "E6-Tamsin.m4a"}]
+    drive.find_episode_folder = lambda code: folder
+    r1._run_pipeline(job_id=1, payload={})
+    (e6,) = [e for e in t1._read_schedule(state)["episodes"] if e["episode_number"] == 6]
+    return e6
+
+
+def test_reprocess_into_a_reused_folder_records_the_folder_as_drive_has_it():
+    """Toby's cold review of #42: a reused folder keeps its own name, which need not match the audio's."""
+    for name in ("E6", "E6-tamsin-smith"):
+        e6 = _reprocess_with_folder({"id": "f6", "name": name})
+        assert e6["folder_name"] == name and e6["drive_folder_id"] == "f6", e6
+        assert e6["slug"] == ef.folder_slug(name), e6  # exactly what the visuals trigger will compute
+        assert e6["pipeline_done"] is False, e6
+
+
+def test_episode_folder_match_is_exact():
+    assert ef.is_episode_folder("E1", "E1") and ef.is_episode_folder("E1-guest", "E1")
+    assert ef.is_episode_folder("E6-jane", "E6-")  # card_upload passes "E6-"
+    assert not ef.is_episode_folder("E13-heather-john", "E1")
+    assert not ef.is_episode_folder("E16-x", "E1") and not ef.is_episode_folder("E61-x", "E6-")
+    assert ef.folder_slug("E6-jane") == "jane" and ef.folder_slug("E13-Heather-John") == "heather-john"
+    assert ef.folder_slug("E6") == "e6"
+
+
+def test_drive_finds_only_the_exact_episode_folder():
+    """Drive's `contains 'E1'` returns E13's folder first; find_episode_folder must skip it."""
+    import importlib
+    import os
+
+    os.environ.setdefault("DRIVE_EPISODES_FOLDER_ID", "parent")
+    _swap.pop("rockstar.clients.drive_client", None)
+    for mod in (
+        "googleapiclient",
+        "googleapiclient.discovery",
+        "googleapiclient.errors",
+        "googleapiclient.http",
+        "rockstar.clients.google_auth",
+    ):
+        if mod not in sys.modules:
+            m = types.ModuleType(mod)
+            m.build = m.HttpError = m.MediaFileUpload = m.MediaIoBaseDownload = m.drive_credentials = object
+            _swap.put(mod, m)
+    dc = importlib.import_module("rockstar.clients.drive_client")
+    listed = [{"id": "f13", "name": "E13-heather-john"}, {"id": "f1", "name": "E1-guest"}]
+    files = types.SimpleNamespace(list=lambda **k: types.SimpleNamespace(execute=lambda: {"files": listed}))
+    dc._svc = lambda: types.SimpleNamespace(files=lambda: files)
+    assert dc.find_episode_folder("E1")["id"] == "f1"
+    listed[:] = [{"id": "f13", "name": "E13-heather-john"}]
+    assert dc.find_episode_folder("E1") is None
+    _swap.pop("rockstar.clients.drive_client", None)
 
 
 def test_target_matches_by_number_not_prefix():

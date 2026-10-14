@@ -21,10 +21,11 @@ import io
 import json
 import logging
 import os
-import re
 import sys
 import types
 from pathlib import Path
+
+import _swap  # noqa: E402 — tests/: fakes go on the package too
 
 REPO = Path(__file__).resolve().parent.parent  # the repo root: tests/ is one level down
 sys.path.insert(0, str(REPO))
@@ -40,15 +41,17 @@ def _install_stubs():
                 pass
 
         a.Anthropic = Anthropic
-        sys.modules["anthropic"] = a
+        _swap.put("anthropic", a)
 
 
 _install_stubs()
-import anthropic_client  # noqa: E402
-import blog_post  # noqa: E402
-import guest_form  # noqa: E402
-import summary_norm  # noqa: E402
-from content_gates import GateFailure  # noqa: E402
+from rockstar.clients import anthropic_client  # noqa: E402
+from rockstar.content import (
+    blog_post,  # noqa: E402
+    guest_form,  # noqa: E402
+)
+from rockstar.gates import summary_norm  # noqa: E402
+from rockstar.gates.content_gates import GateFailure  # noqa: E402
 
 
 # ── fake Anthropic client ─────────────────────────────────────────────────────
@@ -75,8 +78,16 @@ def _with_client(fake):
     anthropic_client._load_prompt = lambda name: f"system prompt for {name}"
 
 
-QUOTES = {"quotes": [{"id": "q01", "speaker": "Linnea Ashgrovenly", "text": "Those weeds are an apothecary.",
-                      "heading": "The Apothecary in Your Yard"}]}
+QUOTES = {
+    "quotes": [
+        {
+            "id": "q01",
+            "speaker": "Linnea Ashgrovenly",
+            "text": "Those weeds are an apothecary.",
+            "heading": "The Apothecary in Your Yard",
+        }
+    ]
+}
 
 
 # ── R1-03: fences ─────────────────────────────────────────────────────────────
@@ -169,7 +180,13 @@ def test_normalize_real_e32_output():
     assert "Heather Reilly Hiemstra" in clean
     assert rep == {"dropped_preamble_lines": 3, "dropped_rules": 0, "host_fixes": 1}, rep
     s = blog_post.parse_apple_summary(clean)
-    assert (s["guest"], len(s["hook"]), len(s["bullets"]), len(s["tail"]), len(s["bio"])) == ("Linnea Ashgrovenly", 2, 5, 1, 3)
+    assert (s["guest"], len(s["hook"]), len(s["bullets"]), len(s["tail"]), len(s["bio"])) == (
+        "Linnea Ashgrovenly",
+        2,
+        5,
+        1,
+        3,
+    )
 
 
 def test_normalize_is_idempotent():
@@ -198,7 +215,10 @@ def test_normalize_refuses_unparseable():
 
 def test_host_variants():
     f = summary_norm.canonicalize_host
-    assert f("I'm your host, Heather Riley, Heems Drum, the founder") == "I'm your host, Heather Reilly Hiemstra, the founder"
+    assert (
+        f("I'm your host, Heather Riley, Heems Drum, the founder")
+        == "I'm your host, Heather Reilly Hiemstra, the founder"
+    )
     assert f("Heather Riley Helmsdrum sits down") == "Heather Reilly Hiemstra sits down"
     assert f("Heather Riley") == "Heather Reilly Hiemstra"
     assert f("Heather Riley Hosts") == "Heather Reilly Hiemstra Hosts"
@@ -208,8 +228,10 @@ def test_host_variants():
 
 
 # ── BIO-01: the form ──────────────────────────────────────────────────────────
-_HDR = ("Timestamp,Email Address, Your name ,Profile image or business logo,Bio/Introduction ,"
-        "Your primary website,Episode topic or title suggestion\n")
+_HDR = (
+    "Timestamp,Email Address, Your name ,Profile image or business logo,Bio/Introduction ,"
+    "Your primary website,Episode topic or title suggestion\n"
+)
 SENTINEL_BIO = "SENTINEL-BIO-do-not-log-7f3a"
 
 
@@ -217,6 +239,7 @@ def _csv(*rows):
     out = io.StringIO()
     out.write(_HDR)
     import csv as _c
+
     w = _c.writer(out)
     for r in rows:
         w.writerow(r)
@@ -224,9 +247,18 @@ def _csv(*rows):
 
 
 def test_form_headers_by_name_not_position():
-    rows = guest_form.parse_csv(_csv(["2026/06/01", "ah@example.test", " Linnea Ashgrovenly ", "", SENTINEL_BIO, "", ""]))
-    assert rows == [{"name": "Linnea Ashgrovenly", "bio": SENTINEL_BIO, "email": "ah@example.test",
-                     "timestamp": "2026/06/01", "website": ""}], rows
+    rows = guest_form.parse_csv(
+        _csv(["2026/06/01", "ah@example.test", " Linnea Ashgrovenly ", "", SENTINEL_BIO, "", ""])
+    )
+    assert rows == [
+        {
+            "name": "Linnea Ashgrovenly",
+            "bio": SENTINEL_BIO,
+            "email": "ah@example.test",
+            "timestamp": "2026/06/01",
+            "website": "",
+        }
+    ], rows
 
 
 def test_form_missing_bio_column_is_an_error():
@@ -239,12 +271,14 @@ def test_form_missing_bio_column_is_an_error():
 
 
 def test_form_match_one_none_several_newest():
-    rows = guest_form.parse_csv(_csv(
-        ["2026/01/01", "old@example.test", "Linnea Ashgrovenly", "", "old bio", "", ""],
-        ["2026/06/01", "new@example.test", "Linnea Ashgrovenly", "", "new bio", "", ""],
-        ["2026/02/01", "x@example.test", "Dr. Jane Roe", "", "jr bio", "", ""],
-        ["2026/02/01", "y@example.test", "Cher", "", "single", "", ""],
-    ))
+    rows = guest_form.parse_csv(
+        _csv(
+            ["2026/01/01", "old@example.test", "Linnea Ashgrovenly", "", "old bio", "", ""],
+            ["2026/06/01", "new@example.test", "Linnea Ashgrovenly", "", "new bio", "", ""],
+            ["2026/02/01", "x@example.test", "Dr. Jane Roe", "", "jr bio", "", ""],
+            ["2026/02/01", "y@example.test", "Cher", "", "single", "", ""],
+        )
+    )
     rec, rule = guest_form.match_guest(rows, "So to our guest, Linnea Ashgrovenly, is this woman such a badass")
     assert rec and rec["bio"] == "new bio" and rec["email"] == "new@example.test", (rec, rule)
     rec, rule = guest_form.match_guest(rows, "Today we have Jane Roe with us")  # honorific dropped
@@ -257,9 +291,63 @@ def test_form_match_one_none_several_newest():
     assert rec is None
 
 
+def test_form_first_name_alone_matches_only_the_one_person_with_it():
+    """E34, 2026-10-13: the host said the guest's first name four times in the intro and never her surname; her form
+    line was there and the surname rule missed it. A first name heard (twice or more) that only one form answer has
+    is that person. Two people sharing it, the host's own first name, or a name that's an everyday word: no match."""
+    rows = guest_form.parse_csv(
+        _csv(
+            ["2026/07/01", "zq@example.test", "Zephyrine Quillfeather", "", "zq bio", "", ""],
+            ["2026/07/01", "lb@example.test", "Linnea Brightwater", "", "lb bio", "", ""],
+            ["2026/07/02", "la@example.test", "Linnea Ashgrovenly", "", "la bio", "", ""],
+            ["2026/07/03", "hx@example.test", "Heather Exampleton", "", "hx bio", "", ""],
+            ["2026/07/04", "ap@example.test", "May Invented", "", "ap bio", "", ""],
+        )
+    )
+    rec, rule = guest_form.match_guest(rows, "Zephyrine is a board certified coach. So Zephyrine tell me how it began")
+    assert rec and rec["name"] == "Zephyrine Quillfeather" and "first name" in rule, (rec, rule)
+    rec, rule = guest_form.match_guest(rows, "Zephyrine is here today")  # heard once: no
+    assert rec is None, (rec, rule)
+    rec, rule = guest_form.match_guest(rows, "Linnea joins us. Linnea, welcome")  # two Linneas: no
+    assert rec is None, (rec, rule)
+    rec, rule = guest_form.match_guest(rows, "I'm Heather and Heather is your host")  # the host: no
+    assert rec is None, (rec, rule)
+    rec, rule = guest_form.match_guest(rows, "in May we went, and May again")  # an everyday word: no
+    assert rec is None, (rec, rule)
+
+
+def test_form_first_name_never_picks_an_answer_another_episode_used():
+    """Toby's condition 2: the form holds every past guest. "My husband Mike", said twice, mustn't pull in a past Mike."""
+    rows = guest_form.parse_csv(
+        _csv(
+            ["2026/01/01", "mike@example.test", "Mikkel Pastguest", "", "past bio", "", ""],
+            ["2026/07/01", "zq@example.test", "Zephyrine Quillfeather", "", "zq bio", "", ""],
+        )
+    )
+    used = guest_form.used_by_other_episodes(
+        {
+            "episodes": [
+                {"episode_code": "E10", "guest_name": "Mikkel Pastguest", "guest_email": "mike@example.test"},
+                {"episode_code": "E99", "guest_name": "Zephyrine Quillfeather"},
+            ]
+        },
+        "E99",
+    )  # E99's own entry doesn't count
+    rec, rule = guest_form.match_guest(rows, "my husband Mikkel came too, Mikkel says hi", used)
+    assert rec is None, (rec, rule)
+    rec, rule = guest_form.match_guest(rows, "Zephyrine is here. Zephyrine, welcome", used)
+    assert rec and rec["name"] == "Zephyrine Quillfeather", (rec, rule)
+    rec, rule = guest_form.match_guest(rows, "my husband Mikkel came too, Mikkel says hi")  # nothing used: matches
+    assert rec and rec["name"] == "Mikkel Pastguest", (rec, rule)
+
+
 def test_form_misheard_surname_matches_with_form_spelling():
-    rows = guest_form.parse_csv(_csv(["2/12/2025", "tk@example.test", "Tamsin Kestrelmore MD", "", "bio", "", ""],
-                                     ["2/12/2025", "ts@example.test", "Tamsin Jones", "", "bio2", "", ""]))
+    rows = guest_form.parse_csv(
+        _csv(
+            ["2/12/2025", "tk@example.test", "Tamsin Kestrelmore MD", "", "bio", "", ""],
+            ["2/12/2025", "ts@example.test", "Tamsin Jones", "", "bio2", "", ""],
+        )
+    )
     rec, rule = guest_form.match_guest(rows, "we are so excited to have dr tamsin cestrel more md with us")
     assert rec and rec["name"] == "Tamsin Kestrelmore MD" and "spelled differently" in rule, (rec, rule)
     rec, rule = guest_form.match_guest(rows, "and Tamsin Smith joined")  # first name only + unlike surname
@@ -267,8 +355,11 @@ def test_form_misheard_surname_matches_with_form_spelling():
 
 
 def test_form_similar_surname_never_guesses_between_two():
-    rows = guest_form.parse_csv(_csv(["1", "a@x.test", "Ann Kestrelmore", "", "b", "", ""],
-                                     ["2", "b@x.test", "Ann Cestrelmore", "", "b", "", ""]))
+    rows = guest_form.parse_csv(
+        _csv(
+            ["1", "a@x.test", "Ann Kestrelmore", "", "b", "", ""], ["2", "b@x.test", "Ann Cestrelmore", "", "b", "", ""]
+        )
+    )
     rec, rule = guest_form.match_guest(rows, "today ann cestrel more is here")
     assert rec is None and "2 form answers" in rule, (rec, rule)
 
@@ -297,6 +388,7 @@ def test_form_lookup_never_logs_answers():
 def test_form_outage_is_a_miss_not_a_crash():
     def boom():
         raise RuntimeError("HTTP 500")
+
     guest_form.fetch_rows = boom
     rec, rule = guest_form.lookup([{"start": 5, "text": "Linnea Ashgrovenly"}])
     assert rec is None and "unavailable" in rule
@@ -304,14 +396,16 @@ def test_form_outage_is_a_miss_not_a_crash():
 
 # ── CAL-OFF ───────────────────────────────────────────────────────────────────
 def _round_1_source():
-    return (REPO / "jobs" / "round_1.py").read_text()
+    return (REPO / "rockstar" / "jobs" / "round_1.py").read_text()
 
 
 def test_calendar_off_by_default_and_switchable():
     src = _round_1_source()
     tree = ast.parse(src)
     fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "calendar_event_enabled")
-    ns = {"os": os}
+    from rockstar import config
+
+    ns = {"os": os, "config": config}
     exec(compile(ast.Module(body=[fn], type_ignores=[]), "round_1", "exec"), ns)
     old = os.environ.pop("EDITORIAL_CALENDAR_EVENT", None)
     try:
@@ -326,7 +420,7 @@ def test_calendar_off_by_default_and_switchable():
 
 def test_calendar_create_only_behind_the_switch():
     src = _round_1_source()
-    body = src[src.index("def _run_pipeline"):]  # code only; the module docstring mentions the call too
+    body = src[src.index("def _run_pipeline") :]  # code only; the module docstring mentions the call too
     gate = body.index("if not calendar_event_enabled():")
     create = body.index("calendar_client.create_editorial_event(")
     assert gate < create, "create_editorial_event must sit after the CAL-OFF gate"
@@ -335,11 +429,16 @@ def test_calendar_create_only_behind_the_switch():
 
 # ── R1-05: a re-run archives, never duplicates or deletes ─────────────────────
 def _round_1_with_fake_drive(files):
-    for name in ("drive_client", "calendar_client", "db", "workspace"):
-        sys.modules.setdefault(name, types.ModuleType(name))
-    import importlib
-    sys.modules.pop("jobs.round_1", None)
-    import jobs.round_1 as r1
+    for name in (
+        "rockstar.clients.drive_client",
+        "rockstar.clients.calendar_client",
+        "rockstar.service.db",
+        "rockstar.ops.workspace",
+    ):
+        _swap.setdefault(name, types.ModuleType(name))
+    _swap.pop("rockstar.jobs.round_1", None)
+    from rockstar.jobs import round_1 as r1
+
     calls = {"created": [], "moved": []}
     fake = types.SimpleNamespace(
         list_folder=lambda fid: list(files),
@@ -373,25 +472,65 @@ def test_first_run_touches_nothing():
 
 # ── DEPLOY: no module left behind ─────────────────────────────────────────────
 def _deploy_files():
-    s = (REPO / "scripts" / "deploy.sh").read_text()
-    return set(re.findall(r'^\s*"([^"]+)"', s, re.M))
+    """What a deploy ships, from the real script (since the 2026-10-14 remodel the code list comes from git)."""
+    import subprocess
+
+    r = subprocess.run(["bash", "scripts/deploy.sh", "--list"], cwd=REPO, capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    return set(r.stdout.split())
 
 
 def test_deploy_files_cover_round_1_and_phase_2_imports():
     files = _deploy_files()
     missing = []
-    for mod in ("jobs/round_1.py", "jobs/publish_finalize.py", "blog_publish.py", "summary_norm.py"):
+    for mod in (
+        "rockstar/jobs/round_1.py",
+        "rockstar/jobs/publish_finalize.py",
+        "rockstar/content/blog_publish.py",
+        "rockstar/gates/summary_norm.py",
+    ):
         for node in ast.walk(ast.parse((REPO / mod).read_text())):
             names = []
             if isinstance(node, ast.Import):
                 names = [a.name for a in node.names]
             elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-                names = [node.module]
+                # `from rockstar.clients import drive_client` names a module too, not only `from x.y import f`
+                names = [node.module] + [f"{node.module}.{a.name}" for a in node.names]
             for n in names:
                 local = REPO / (n.replace(".", "/") + ".py")
                 if local.exists() and str(local.relative_to(REPO)) not in files:
                     missing.append(f"{mod} imports {n}")  # PROMPT-01 managed the last exemptions
     assert not missing, "not in deploy.sh FILES (the worker would crash on import):\n  " + "\n  ".join(missing)
+
+
+def test_deploy_files_cover_every_tracked_brand_asset():
+    """HOST-01: the reel's theme, colours and closing stills lived on the old box only (placed by hand) and the cutover
+    left them behind. Every BrandAssets file git tracks ships with the deploy."""
+    import subprocess
+
+    tracked = subprocess.run(
+        ["git", "ls-files", "-z", "BrandAssets"], cwd=REPO, capture_output=True, text=True, check=True
+    ).stdout.split("\0")
+    tracked = [t for t in tracked if t]  # -z: a name with a space stays one name
+    assert tracked, "git ls-files found no BrandAssets (run from a checkout)"
+    docs = {"BrandAssets/fonts/ibm-plex/README.md"}  # where the fonts came from: for people, not the renderer
+    missing = sorted(set(tracked) - set(_deploy_files()) - docs)
+    assert not missing, (
+        "tracked brand assets not in deploy.sh FILES (reels would render without them):\n  " + "\n  ".join(missing)
+    )
+
+
+def test_the_reel_font_is_the_cards_plex_and_licensed_to_ship():
+    """John, 2026-10-12: the reels use the cards' Plex. American Typewriter (a macOS system font) is gone from the repo."""
+    import hashlib
+
+    render = (REPO / "reels" / "render_reel.js").read_text()
+    assert "path.join('fonts', 'ibm-plex', 'IBMPlexSans-SemiBold.ttf')" in render and "primary.tt" not in render
+    ttf = REPO / "BrandAssets" / "fonts" / "ibm-plex" / "IBMPlexSans-SemiBold.ttf"
+    digest = hashlib.sha256(ttf.read_bytes()).hexdigest()
+    assert digest in (ttf.parent / "README.md").read_text(), "the vendored TTF must match its recorded checksum"
+    assert "BrandAssets/fonts/ibm-plex/IBMPlexSans-SemiBold.ttf" in _deploy_files()
+    assert not (REPO / "BrandAssets" / "fonts" / "primary.ttc").exists()
 
 
 def main() -> int:

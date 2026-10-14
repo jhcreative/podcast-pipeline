@@ -15,6 +15,7 @@ import sys
 
 try:  # the live marker, so a plain `pytest` never calls the API (pyproject: addopts "-m 'not live'")
     import pytest
+
     pytestmark = pytest.mark.live
 except ImportError:  # run directly without pytest installed
     pass
@@ -29,17 +30,21 @@ OUT.mkdir(exist_ok=True)
 
 # ── load E25 fixtures ──────────────────────────────────────────────────────────
 
+
 def load_transcript() -> str:
     json_path = E25 / "transcripts/transcript_fast.json"
     data = json.loads(json_path.read_text(encoding="utf-8"))
     segments = data if isinstance(data, list) else data.get("segments", [])
     return " ".join(s.get("text", "").strip() for s in segments if s.get("text"))
 
+
 def load_quotes() -> list[dict]:
     return json.loads((E25 / "quotes.json").read_text(encoding="utf-8")).get("quotes", [])
 
+
 def load_apple_summary() -> str:
     return (E25 / "apple_summary.md").read_text(encoding="utf-8")
+
 
 EPISODE_METADATA = {
     "episode_number": 25,
@@ -51,8 +56,10 @@ EPISODE_METADATA = {
 
 # ── tests ──────────────────────────────────────────────────────────────────────
 
+
 def test_apple(transcript: str, quotes: list[dict]) -> str:
-    import anthropic_client
+    from rockstar.clients import anthropic_client
+
     print("→ compose_apple_summary ...", end=" ", flush=True)
     result = anthropic_client.compose_apple_summary(
         transcript_text=transcript,
@@ -64,8 +71,10 @@ def test_apple(transcript: str, quotes: list[dict]) -> str:
     print(f"done ({len(result)} chars) → {out_path.name}")
     return result
 
+
 def test_faq(transcript: str, apple_summary: str) -> str:
-    import anthropic_client
+    from rockstar.clients import anthropic_client
+
     print("→ compose_faq ...", end=" ", flush=True)
     result = anthropic_client.compose_faq(
         transcript_text=transcript,
@@ -77,7 +86,9 @@ def test_faq(transcript: str, apple_summary: str) -> str:
     print(f"done ({len(result)} chars) → {out_path.name}")
     return result
 
+
 # ── main ───────────────────────────────────────────────────────────────────────
+
 
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -94,13 +105,12 @@ def main():
     print()
 
     new_apple = apple_summary  # default: use existing unless re-generating
-    faq_md = ""
 
     if mode in ("apple", "all"):
         new_apple = test_apple(transcript, quotes)
 
     if mode in ("faq", "all"):
-        faq_md = test_faq(transcript, new_apple)
+        test_faq(transcript, new_apple)
 
     # The blog step was removed with compose_blog_page (BLOG-02b, 2026-09-24): the post is
     # built in plain code now and tested offline in test_blog02_build_post.py.
@@ -108,6 +118,7 @@ def main():
     print(f"\nOutputs in {OUT}/")
     print("  apple_summary_test.md  — check: locked title format, SEO keyword presence in opening 2 paragraphs")
     print("  faq_test.md            — check: 3-5 Q&A pairs, search-phrased, keyword-grounded")
+
 
 if __name__ == "__main__":
     main()

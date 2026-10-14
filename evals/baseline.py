@@ -13,7 +13,8 @@ REQUIRED = {
     "prompt_sha": "per call site, SHA-256 of the system text sent (after include expansion, PROMPT-01)",
     "request_template_sha": "per call site, the request's shape (OBS-01)",
     "deploy_manifest_sha": "SHA-256 of scripts/deploy.sh FILES as deployed",
-    "summary_norm_version": "git sha of summary_norm.py (it shapes what the model sees and what Heather saw)",
+    "summary_norm_version": "git sha of rockstar/gates/summary_norm.py "
+    "(it shapes what the model sees and what Heather saw)",
     "judge_model": "fixed per run; never a candidate (EVAL-01 AC-6)",
     "judge_prompt_sha": "SHA-256 of the judge prompt",
     "fixture_manifest_sha": "SHA-256 of the sorted list of fixture files and their hashes",
@@ -36,8 +37,15 @@ def validate(baseline: dict) -> list[str]:
         problems.append("scored_episodes is empty: a baseline over nothing")
     if not (type(baseline["runs_per_episode"]) is int and baseline["runs_per_episode"] > 0):  # bool is an int
         problems.append("runs_per_episode must be a positive integer")
-    for k in ("created_at", "model", "deploy_manifest_sha", "summary_norm_version", "judge_model",
-              "judge_prompt_sha", "fixture_manifest_sha"):
+    for k in (
+        "created_at",
+        "model",
+        "deploy_manifest_sha",
+        "summary_norm_version",
+        "judge_model",
+        "judge_prompt_sha",
+        "fixture_manifest_sha",
+    ):
         if not (isinstance(baseline[k], str) and baseline[k].strip()):
             problems.append(f"{k} must be a non-empty string")
     if not problems:

@@ -63,18 +63,23 @@ def test_every_guest_is_marked_synthetic():
 
 def test_golden_hash_pins_determinism():
     import hashlib
+
     blob = json.dumps([generate(s, p).__dict__ for s in (1, 2) for p in sorted(PROPERTIES)], sort_keys=True)
     got = hashlib.sha256(blob.encode()).hexdigest()
     assert got == GOLDEN, f"generator output drifted (Python's random or the code changed): {got}"
 
 
 def test_clean_episode_builds():
-    import blog_post
-    import content_gates
+    from rockstar.content import blog_post
+    from rockstar.gates import content_gates
+
     ep = generate(5)
-    meta = {"episode_title": ep.title, "episode_number": ep.number,
-            "spotify_url": "https://open.spotify.com/episode/0TPlCabcdefghijklmnopq",
-            "apple_url": "https://podcasts.apple.com/us/podcast/genx-hits-menopause/id1785708777?i=1000700000033"}
+    meta = {
+        "episode_title": ep.title,
+        "episode_number": ep.number,
+        "spotify_url": "https://open.spotify.com/episode/0TPlCabcdefghijklmnopq",
+        "apple_url": "https://podcasts.apple.com/us/podcast/genx-hits-menopause/id1785708777?i=1000700000033",
+    }
     post = blog_post.build_post(ep.apple_summary, ep.quotes, ep.faq, meta)
     content_gates.assert_blog_post_wellformed(post, ep.quotes, ep.code)
     assert ep.guest_name in json.dumps(post) and post["slug"] == blog_post.propose_slug(ep.title)
@@ -93,6 +98,7 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             failed += 1
             import traceback
+
             print(f"  ERROR {t.__name__}: {type(e).__name__}: {e}")
             traceback.print_exc()
     print(f"\n{len(tests) - failed} passed, {failed} failed (of {len(tests)})")

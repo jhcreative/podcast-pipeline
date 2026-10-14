@@ -24,10 +24,41 @@ Z95 = 1.959963984540054
 
 # Two-sided 95% Student-t critical values by degrees of freedom; between rows the LOWER df is used (wider, so
 # conservative). Beyond 120, the df-120 value — still above the true value, where z (1.960) would be below it.
-_T975 = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228,
-         11: 2.201, 12: 2.179, 13: 2.160, 14: 2.145, 15: 2.131, 16: 2.120, 17: 2.110, 18: 2.101, 19: 2.093,
-         20: 2.086, 21: 2.080, 22: 2.074, 23: 2.069, 24: 2.064, 25: 2.060, 26: 2.056, 27: 2.052, 28: 2.048,
-         29: 2.045, 30: 2.042, 40: 2.021, 60: 2.000, 120: 1.980}
+_T975 = {
+    1: 12.706,
+    2: 4.303,
+    3: 3.182,
+    4: 2.776,
+    5: 2.571,
+    6: 2.447,
+    7: 2.365,
+    8: 2.306,
+    9: 2.262,
+    10: 2.228,
+    11: 2.201,
+    12: 2.179,
+    13: 2.160,
+    14: 2.145,
+    15: 2.131,
+    16: 2.120,
+    17: 2.110,
+    18: 2.101,
+    19: 2.093,
+    20: 2.086,
+    21: 2.080,
+    22: 2.074,
+    23: 2.069,
+    24: 2.064,
+    25: 2.060,
+    26: 2.056,
+    27: 2.052,
+    28: 2.048,
+    29: 2.045,
+    30: 2.042,
+    40: 2.021,
+    60: 2.000,
+    120: 1.980,
+}
 MIN_EPISODES = 10
 
 
@@ -37,8 +68,14 @@ def _t975(df: int) -> float:
     return _T975[max(k for k in _T975 if k <= df)]
 
 
-def paired_bootstrap(baseline: dict[str, list[float]], candidate: dict[str, list[float]], *,
-                     lower_is_better: bool, resamples: int = 10_000, seed: int = 20261010) -> dict:
+def paired_bootstrap(
+    baseline: dict[str, list[float]],
+    candidate: dict[str, list[float]],
+    *,
+    lower_is_better: bool,
+    resamples: int = 10_000,
+    seed: int = 20261010,
+) -> dict:
     """baseline/candidate: {episode: [score per run]}. Only episodes present in both, with runs, count (paired).
 
     Two 95% intervals on the per-episode differences — the bootstrap percentile and the Student-t — and the
@@ -65,20 +102,26 @@ def paired_bootstrap(baseline: dict[str, list[float]], candidate: dict[str, list
     else:
         lower = hi < 0
         verdict = "candidate better" if lower == lower_is_better else "candidate worse"
-    return {"n_episodes": n, "mean_diff": round(mean(diffs), 4), "ci95": [round(lo, 4), round(hi, 4)],
-            "ci95_bootstrap": [round(boot_ci[0], 4), round(boot_ci[1], 4)],
-            "ci95_t": [round(t_ci[0], 4), round(t_ci[1], 4)], "verdict": verdict,
-            "metric_direction": "lower is better" if lower_is_better else "higher is better",
-            "resamples": resamples, "seed": seed}
+    return {
+        "n_episodes": n,
+        "mean_diff": round(mean(diffs), 4),
+        "ci95": [round(lo, 4), round(hi, 4)],
+        "ci95_bootstrap": [round(boot_ci[0], 4), round(boot_ci[1], 4)],
+        "ci95_t": [round(t_ci[0], 4), round(t_ci[1], 4)],
+        "verdict": verdict,
+        "metric_direction": "lower is better" if lower_is_better else "higher is better",
+        "resamples": resamples,
+        "seed": seed,
+    }
 
 
 def wilson(successes: int, n: int) -> tuple[float, float]:
     if n <= 0 or not 0 <= successes <= n:
         raise ValueError(f"need 0 <= successes <= n and n > 0, got {successes}/{n}")
     p = successes / n
-    denom = 1 + Z95 ** 2 / n
-    centre = (p + Z95 ** 2 / (2 * n)) / denom
-    half = Z95 * math.sqrt(p * (1 - p) / n + Z95 ** 2 / (4 * n * n)) / denom
+    denom = 1 + Z95**2 / n
+    centre = (p + Z95**2 / (2 * n)) / denom
+    half = Z95 * math.sqrt(p * (1 - p) / n + Z95**2 / (4 * n * n)) / denom
     return round(centre - half, 4), round(centre + half, 4)
 
 
@@ -101,5 +144,10 @@ def calibration_report(judge: list, heather: list) -> dict:
         raise ValueError("judge and Heather must rate the same, non-empty list of items")
     n = len(judge)
     agree = sum(x == y for x, y in zip(judge, heather, strict=True))
-    return {"n": n, "raw_agreement": round(agree / n, 4), "wilson95": wilson(agree, n),
-            "kappa": cohen_kappa(judge, heather), "status": "advisory — n < 30" if n < 30 else "may gate"}
+    return {
+        "n": n,
+        "raw_agreement": round(agree / n, 4),
+        "wilson95": wilson(agree, n),
+        "kappa": cohen_kappa(judge, heather),
+        "status": "advisory — n < 30" if n < 30 else "may gate",
+    }

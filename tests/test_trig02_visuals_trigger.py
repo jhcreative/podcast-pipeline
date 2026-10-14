@@ -22,18 +22,20 @@ import tempfile
 import types
 from pathlib import Path
 
+import _swap  # noqa: E402 — tests/: fakes go on the package too
+
 REPO = Path(__file__).resolve().parent.parent  # the repo root: tests/ is one level down
 sys.path.insert(0, str(REPO))
 STATE = Path(tempfile.mkdtemp(prefix="trig02-"))
 os.environ["STATE_DIR"] = str(STATE)
 
-import episode_files  # noqa: E402
+from rockstar.content import episode_files  # noqa: E402
 
 for name in ("anthropic",):
     if name not in sys.modules:
         m = types.ModuleType(name)
         m.Anthropic = type("Anthropic", (), {"__init__": lambda self, *a, **k: None})
-        sys.modules[name] = m
+        _swap.put(name, m)
 
 
 def _drive_changes(files, folder_name="E32-linnea"):
@@ -43,15 +45,22 @@ def _drive_changes(files, folder_name="E32-linnea"):
     drive = types.ModuleType("drive_client")
     drive.get_folder_name = lambda fid: folder_name
     drive.list_folder = lambda fid: list(files)
-    sys.modules["db"], sys.modules["drive_client"] = db, drive
-    sys.modules.pop("drive_changes", None)
-    import drive_changes
+    _swap.update({"rockstar.service.db": db, "rockstar.clients.drive_client": drive})
+    _swap.pop("rockstar.clients.drive_changes", None)
+    from rockstar.clients import drive_changes
+
     return drive_changes, db
 
 
 def _schedule(**over):
-    ep = {"episode_number": 32, "episode_code": "E32", "slug": "linnea", "drive_folder_id": "F32",
-          "status": "reprocessed", "pipeline_done": False}
+    ep = {
+        "episode_number": 32,
+        "episode_code": "E32",
+        "slug": "linnea",
+        "drive_folder_id": "F32",
+        "status": "reprocessed",
+        "pipeline_done": False,
+    }
     ep.update(over)
     (STATE / "publication_schedule.json").write_text(json.dumps({"episodes": [ep]}))
 
@@ -61,8 +70,11 @@ REEL = {"id": "r1", "name": "E32-linnea-reel.png", "mimeType": "image/png"}
 
 
 def test_find_visual_rules():
-    files = [{"id": "x", "name": "E32-tile.jpg", "mimeType": "application/vnd.google-apps.folder"},
-             {"id": "y", "name": "E32-linnea-tile.pdf", "mimeType": "application/pdf"}, TILE]
+    files = [
+        {"id": "x", "name": "E32-tile.jpg", "mimeType": "application/vnd.google-apps.folder"},
+        {"id": "y", "name": "E32-linnea-tile.pdf", "mimeType": "application/pdf"},
+        TILE,
+    ]
     assert episode_files.find_visual(files, "tile")["id"] == "t1"
     assert episode_files.find_visual([REEL], "tile") is None
     assert episode_files.find_visual([{"id": "z", "name": "tile.jpg"}], "tile") is None  # needs E<N>
@@ -101,17 +113,26 @@ def test_other_folder_does_not_fire():
 
 
 def _pf():
-    for name in ("calendar_client", "drive_client", "gmail_client", "publisher_email", "db",
-                 "blog_publish", "workspace"):
-        sys.modules[name] = types.ModuleType(name)
-    sys.modules.pop("jobs.publish_finalize", None)
-    import jobs.publish_finalize as pf
+    for name in (
+        "rockstar.clients.calendar_client",
+        "rockstar.clients.drive_client",
+        "rockstar.clients.gmail_client",
+        "rockstar.clients.publisher_email",
+        "rockstar.service.db",
+        "rockstar.content.blog_publish",
+        "rockstar.ops.workspace",
+    ):
+        _swap.put(name, types.ModuleType(name))
+    _swap.pop("rockstar.jobs.publish_finalize", None)
+    from rockstar.jobs import publish_finalize as pf
+
     return pf
 
 
 def test_show_links_pass_the_blog_gate():
     pf = _pf()
-    import content_gates
+    from rockstar.gates import content_gates
+
     assert content_gates._listen_url_problem("Listen on Apple", pf._SHOW_APPLE_URL) is None
     assert content_gates._listen_url_problem("Listen on Spotify", pf._SHOW_SPOTIFY_URL) is None
 
@@ -119,35 +140,54 @@ def test_show_links_pass_the_blog_gate():
 def test_record_says_links_pending_until_real_links():
     pf = _pf()
     ep = {}
-    pf._apply_phase2_completion(ep, apple_url=pf._SHOW_APPLE_URL, spotify_url=pf._SHOW_SPOTIFY_URL,
-                                mm_url="", blog_post_url="https://rockstarblends.com/blog/x", message_id="",
-                                today="2026-10-01",
-                                links_pending=pf._links_pending(pf._SHOW_APPLE_URL, pf._SHOW_SPOTIFY_URL))
+    pf._apply_phase2_completion(
+        ep,
+        apple_url=pf._SHOW_APPLE_URL,
+        spotify_url=pf._SHOW_SPOTIFY_URL,
+        mm_url="",
+        blog_post_url="https://rockstarblends.com/blog/x",
+        message_id="",
+        today="2026-10-01",
+        links_pending=pf._links_pending(pf._SHOW_APPLE_URL, pf._SHOW_SPOTIFY_URL),
+    )
     assert ep["episode_links_pending"] is True and "episode links pending" in ep["notes"]
-    pf._apply_phase2_completion(ep, apple_url="https://podcasts.apple.com/us/podcast/x/id1785708777?i=1",
-                                spotify_url="https://open.spotify.com/episode/abc", mm_url="",
-                                blog_post_url="https://rockstarblends.com/blog/x", message_id="", today="2026-10-02",
-                                links_pending=pf._links_pending("https://podcasts.apple.com/us/podcast/x/id1785708777?i=1",
-                                                                "https://open.spotify.com/episode/abc"))
+    pf._apply_phase2_completion(
+        ep,
+        apple_url="https://podcasts.apple.com/us/podcast/x/id1785708777?i=1",
+        spotify_url="https://open.spotify.com/episode/abc",
+        mm_url="",
+        blog_post_url="https://rockstarblends.com/blog/x",
+        message_id="",
+        today="2026-10-02",
+        links_pending=pf._links_pending(
+            "https://podcasts.apple.com/us/podcast/x/id1785708777?i=1", "https://open.spotify.com/episode/abc"
+        ),
+    )
     assert ep["episode_links_pending"] is False
 
 
 def test_phase2_recognises_both_resume_names_and_visuals():
-    src = (REPO / "jobs" / "publish_finalize.py").read_text()
+    src = (REPO / "rockstar" / "jobs" / "publish_finalize.py").read_text()
     assert 'trigger == "visuals"' in src
     assert 'trigger in ("drive_resume", "drive_changes_resume")' in src
 
 
 def test_one_visual_rule():
-    tree = ast.parse((REPO / "jobs" / "publish_finalize.py").read_text())
-    literal = [n for n in ast.walk(tree) if isinstance(n, ast.Assign)
-               and any(getattr(t, "id", "") == "_VISUAL_RE" for t in n.targets) and isinstance(n.value, ast.Dict)]
+    tree = ast.parse((REPO / "rockstar" / "jobs" / "publish_finalize.py").read_text())
+    literal = [
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Assign)
+        and any(getattr(t, "id", "") == "_VISUAL_RE" for t in n.targets)
+        and isinstance(n.value, ast.Dict)
+    ]
     assert not literal, "publish_finalize must use episode_files.VISUAL_RE, the rule the trigger uses"
 
 
 def test_guest_gate_with_unknown_name():
-    import content_gates
-    from content_gates import GateFailure
+    from rockstar.gates import content_gates
+    from rockstar.gates.content_gates import GateFailure
+
     quotes = [{"speaker": "Linnea Ashgrovenly"}, {"speaker": "Heather Reilly Hiemstra"}]
     for placeholder in ("Guest", "", "TBD"):
         content_gates.assert_guest_featured(quotes, placeholder, "E32")  # guest featured: passes
@@ -162,18 +202,22 @@ def test_guest_gate_with_unknown_name():
 
 def test_guest_name_from_reviewed_summary():
     pf = _pf()
-    import blog_post as _bp
+    from rockstar.content import blog_post as _bp
+
     pf.blog_post = _bp
-    import content_gates
-    e13 = ("# Gen X Hits Menopause · S1E13 · A | B\n\nHook.\n\nConversations include\n\n- **L** b\n\nTune.\n\n"
-           "About Heather Reilly Hiemstra\n\nBio.\n")
+    from rockstar.gates import content_gates
+
+    e13 = (
+        "# Gen X Hits Menopause · S1E13 · A | B\n\nHook.\n\nConversations include\n\n- **L** b\n\nTune.\n\n"
+        "About Heather Reilly Hiemstra\n\nBio.\n"
+    )
     name = pf._guest_from_summary("", e13, "E13")
     assert name == "Heather Reilly Hiemstra", name
     content_gates.assert_guest_featured([{"speaker": "Heather Reilly Hiemstra"}] * 5, name, "E13")  # host-only: allowed
     e6 = e13.replace("About Heather Reilly Hiemstra", "About Tamsin Kestrelmore, MD")
     assert pf._guest_from_summary("Guest", e6, "E6") == "Tamsin Kestrelmore, MD"
-    assert pf._guest_from_summary("Linnea Ashgrovenly", e6, "E32") == "Linnea Ashgrovenly"     # a real schedule name wins
-    assert pf._guest_from_summary("", "not a summary", "E1") == ""                 # unparseable: unchanged
+    assert pf._guest_from_summary("Linnea Ashgrovenly", e6, "E32") == "Linnea Ashgrovenly"  # a real schedule name wins
+    assert pf._guest_from_summary("", "not a summary", "E1") == ""  # unparseable: unchanged
 
 
 def main() -> int:

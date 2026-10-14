@@ -18,6 +18,9 @@
 #   bash scripts/deploy.sh                    # deploy + verify
 #   bash scripts/deploy.sh --rebuild-closing  # also regenerate the closing asset server-side
 #   bash scripts/deploy.sh --check            # verify checksums only, deploy nothing
+#   bash scripts/deploy.sh --list             # print every file a deploy ships (from git), touch nothing
+#   bash scripts/deploy.sh --new-box [--check] # the same, to scripts/box-new.conf (HOST-01: the OVH box before its
+#                                             # cutover; its services are installed but not enabled, so nothing starts)
 
 set -euo pipefail
 
@@ -29,88 +32,28 @@ LOCAL_ROOT="$(CDPATH= cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # ship local-only material (episode archives, carry-forward notes, test files)
 # and hide what actually changed. Every deployable earns its line.
 FILES=(
-  "db.py"
-  "anthropic_client.py"
-  "run_ledger.py"        # OBS-01: anthropic_client, both jobs and the worker import it
-  "content_gates.py"
-  "thank_you.py"
-  "calendar_client.py"   # CAL-OFF / BLOG-02 F-1: was unmanaged, the box kept the May copy
-  "guest_form.py"        # BIO-01
-  "summary_norm.py"      # R1-02 / R1-04
-  "host_identity.py"         # REEL-09: the one host rule (summary_norm, episode_files, content_gates import it)
-  "episode_files.py"     # R1-01
-  # BLOG-02 (Oliver's 02c blocker #1): publish_finalize imports all three at startup — a
-  # missing one crashes the worker on import, not just the blog step.
-  "blog_post.py"
-  "blog_publish.py"
-  "tailor_client.py"
-  "drive_client.py"
-  "gmail_client.py"
-  "publisher_email.py"
-  "workspace.py"
-  "drive_changes.py"
-  "poll_drive_changes.py"
-  "webhook_service.py"
-  "webhook_auth.py"      # SEC-01: who may call the webhook service (webhook_service imports it)
-  "jobs/round_1.py"
-  "jobs/publish_finalize.py"
-  "scripts/render_reel.js"
+  # The shell scripts the pipeline runs, and the brand assets it reads. The code and prompts are added from git below.
+  # (DEPLOY-01, 2026-07-21: align_episode.py had never reached the server, so ADR 0003/0004 never ran in production —
+  # the history behind shipping from git: docs/carry-forward/2026-10-13-remodel.md, subject "deploy".)
   "scripts/render_closing_sequence.sh"
-  "scripts/verify_reel_spec.js"
   "scripts/extract_quote_clips.sh"
-  "scripts/lookup_quote_timestamps.js"
-  # DEPLOY-01 (2026-07-21): these three are invoked by the pipeline but were never
-  # in this list. align_episode.py did not exist on the server AT ALL, which is why
-  # ADR 0003 / ADR 0004 never ran in production; detect_boundaries.js and
-  # inject_word_timestamps.js happened to match local, but nothing enforced that —
-  # an edit to either would have sat on the laptop while --check still reported green.
   "scripts/align_episode.py"
-  "scripts/detect_boundaries.js"
-  "scripts/inject_word_timestamps.js"
   "scripts/transcribe_fast.sh"
   "scripts/transcribe_clips.sh"
   "scripts/transcribe_episode.sh"
   "scripts/deploy.sh"
-  "scripts/ledger_summary.py"   # OBS-01: one episode's cost, cache and steps, read on the box
-  "prompts/brand_team_lisa.md"
-  "prompts/brand_team_marcus.md"
-  "prompts/quote_card_captions.md"   # local tool only, but anthropic_client.py
-                                     # is deployed and _load_prompt()s it — keep
-                                     # the pair together (4th FILES-gap class)
-  "prompts/seo_captions.md"
-  "prompts/thank_you.md"
-  "prompts/title.md"
-  # PROMPT-01 Part 1 (2026-10-10): loaded by anthropic_client.py, never in this list — the box ran
-  # whatever copies were placed some other way, and --check couldn't see them. check_manifest.py now does.
-  "prompts/apple_summary.md"
-  "prompts/faq.md"
-  "prompts/brand_team_robert.md"
-  "prompts/brand_team_dr_joe.md"
-  # Same class, found by check_manifest.py: the worker itself and the modules every Google client imports.
-  "worker.py"
-  "google_auth.py"
-  "jobs/__init__.py"
-  "tools/rerun_brand_team.py"
-  "tools/reprocess_episode.py"
-  "tools/create_thank_you_draft.py"
-  "watches/renew_watches.py"
-  # CARD-05 (ADR-0015): Phase 2 builds the quote cards on the box, in vendored IBM Plex.
-  "jobs/card_step.py"
-  "quote_cards/card_format.py"
-  "quote_cards/card_upload.py"
-  "quote_cards/cover_backfill.py"
-  "quote_cards/cover_format.py"
-  "quote_cards/cover_image.py"
-  "quote_cards/cover_titles.py"
-  "quote_cards/make_captions.py"
-  "quote_cards/make_cover_titles.py"
-  "quote_cards/plex_fonts.py"
-  "quote_cards/quote_source.py"
-  "quote_cards/render_cards.py"
-  "quote_cards/render_covers.py"
-  "quote_cards/background.png"
-  "prompts/cover_titles.md"
+  # CARD-05 (ADR-0015) and HOST-01: the cards' fonts, the reel's theme, beat grid, colours and closing stills (the
+  # closing video is built from the stills on the box: deploy.sh --rebuild-closing).
   "BrandAssets/reel_background_host.jpg"
+  "BrandAssets/audio/theme.mp3"
+  "BrandAssets/audio/theme_bpm.json"
+  "BrandAssets/brand_colors.json"
+  "BrandAssets/host_bio.md"            # Heather's published bio, for an episode with no guest (content_gates.host_bio)
+  "BrandAssets/closing/close_01.jpg"
+  "BrandAssets/closing/close_02.jpg"
+  "BrandAssets/closing/close_03.jpg"
+  "BrandAssets/closing/close_04.jpg"
+  "BrandAssets/fonts/ibm-plex/IBMPlexSans-SemiBold.ttf"   # the reel's captions and opener (render_reel.js PRIMARY_FONT)
   "BrandAssets/fonts/ibm-plex/IBMPlexSans-Regular.woff2"
   "BrandAssets/fonts/ibm-plex/IBMPlexSans-Medium.woff2"
   "BrandAssets/fonts/ibm-plex/IBMPlexSans-SemiBold.woff2"
@@ -120,27 +63,51 @@ FILES=(
   "BrandAssets/fonts/ibm-plex/LICENSE.txt"
 )
 
-# Files deploy.sh did not manage until now. Their box copies were placed some other way and may hold an
-# edit made on the box, so a deploy never overwrites one unless it is absent, identical, or a version this
-# repo committed (scripts/box_gate.sh; PROMPT-01 scope 3, PP-11). A copy edited on the box stops the deploy
-# until it is resolved by hand (scp it down, diff, decide with Heather for a prompt). Local edits after the
-# first deploy pass: the box then holds a committed version.
-NEWLY_MANAGED=(
-  "prompts/apple_summary.md"
-  "prompts/faq.md"
-  "prompts/brand_team_robert.md"
-  "prompts/brand_team_dr_joe.md"
-  "worker.py"
-  "google_auth.py"
-  "jobs/__init__.py"
-)
+# The code ships whole (2026-10-14 remodel): every tracked module of the rockstar package, every reel script and every
+# prompt, read from git. A new module or prompt can't be left off a list (PROMPT-01: four prompts and five modules
+# never shipped), so scripts/check_manifest.py, which caught that after the fact, is retired.
+# Mac-only tools stay off the box (Orly, the remodel's cold review): the sandbox harness deletes the folders it's given
+# and spends the API key; the export, the hand blog write and the Dr. Joe re-run are laptop work.
+MAC_ONLY='^rockstar/tools/(sandbox_run|share_export|publish_blog_post|run_dr_joe)\.py$'
+LIST_OK=1
+code_list=$(git -C "$LOCAL_ROOT" ls-files 'rockstar/*.py' 'rockstar/cards/background.png' 'reels/*.js' 'prompts/*.md' \
+  2>/dev/null) || LIST_OK=0
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  [[ "$f" =~ ^reels/(test_[^/]*|[^/]*\.test)\.m?js$ || "$f" =~ $MAC_ONLY ]] && continue
+  FILES+=("$f")
+done <<<"$code_list"
+
+# The list's own checks, run after the git gates and before any ssh (and by --list):
+check_list() {
+  (( LIST_OK )) || { echo "[deploy] FAIL: git ls-files failed — nothing was listed or shipped" >&2; exit 1; }
+  # A path reaches a root shell on the box (mkdir, install, sha256sum): plain names only (Orly, S2).
+  for f in "${FILES[@]}"; do
+    [[ "$f" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "[deploy] FAIL: refusing to ship an unusual path: '$f'" >&2; exit 1; }
+  done
+  # A list without the package would ship no code and still report parity: it must hold the service and its auth.
+  # (A loop, not `printf | grep -q`: under pipefail grep -q's early exit can fail the pipe — the 2026-10-09 RSB 521.)
+  local must f found
+  for must in rockstar/__init__.py rockstar/service/worker.py rockstar/service/webhook_auth.py; do
+    found=0
+    for f in "${FILES[@]}"; do [[ "$f" == "$must" ]] && found=1; done
+    (( found )) || { echo "[deploy] FAIL: $must is not in the list" >&2; exit 1; }
+  done
+}
+
+# Every shipped file passes the box gate first: a box copy is overwritten only if it is absent, identical, or a
+# version this repo committed (scripts/box_gate.sh; PROMPT-01 scope 3, PP-11). A copy edited on the box stops the
+# deploy until it is resolved by hand (scp it down, diff, decide with Heather for a prompt).
 
 REBUILD_CLOSING=0
 CHECK_ONLY=0
+BOX_WHICH=""
 for arg in "$@"; do
   case "$arg" in
     --rebuild-closing) REBUILD_CLOSING=1 ;;
     --check)           CHECK_ONLY=1 ;;
+    --new-box)         BOX_WHICH=__box_new__ ;;   # HOST-01: the OVH box before its cutover (scripts/box-new.conf)
+    --list)            check_list; printf '%s\n' "${FILES[@]}"; exit 0 ;;   # what would ship; nothing else runs
     *) echo "[deploy] unknown flag: $arg"; exit 2 ;;
   esac
 done
@@ -159,6 +126,8 @@ git -C "$LOCAL_ROOT" fetch -q origin main || fail "could not fetch origin/main t
 [[ "$(git -C "$LOCAL_ROOT" rev-parse HEAD)" == "$(git -C "$LOCAL_ROOT" rev-parse origin/main)" ]] \
   || fail "local main is not origin/main (pull or push first) — the box gets exactly what GitHub has"
 
+check_list
+
 # Every FILES entry must be tracked by git: the clean-tree check above can't see an untracked file, and its local
 # bytes would ship (re-review of PR #38, finding 4).
 for f in "${FILES[@]}"; do
@@ -167,13 +136,19 @@ done
 
 # The box's address: scripts/box.conf (gitignored), via scripts/box.sh. A deploy honours NO override — not SERVER,
 # not BOX_SERVER_OVERRIDE (that one is the card scripts' rehearsal hook only): box.conf alone names the target.
+# The one choice is this script's own flag: --new-box reads scripts/box-new.conf instead (HOST-01), passed to box.sh
+# as an argument, never through the environment.
 unset BOX_SERVER_OVERRIDE
-builtin source "$LOCAL_ROOT/scripts/box.sh"
+builtin source "$LOCAL_ROOT/scripts/box.sh" "$BOX_WHICH"
+echo "[deploy] target: $SERVER ($( [[ -n "$BOX_WHICH" ]] && echo scripts/box-new.conf || echo scripts/box.conf ))"
 
 cd "$LOCAL_ROOT"
 
-# The manifest must name everything the box runs. A gap blocks both deploy and --check (PROMPT-01, DEPLOY-01).
-python3 -I scripts/check_manifest.py --root "$LOCAL_ROOT" || fail "deploy manifest is incomplete (see MISSING above)"
+# The local gate (DOD-1): lint, format, every Python and Node test, every module imports. A deploy (not --check,
+# which ships nothing) refuses to run without it green.
+if [[ "$CHECK_ONLY" -eq 0 ]]; then
+  bash "$LOCAL_ROOT/scripts/check.sh" || fail "the local gate (scripts/check.sh) is not green — nothing was shipped"
+fi
 
 # Reach the box once before asking it anything. An unreachable box must read as unreachable, never as "absent on
 # server" (2026-10-11: a placeholder box.conf made --check report every file MISSING).
@@ -184,23 +159,43 @@ ssh "${SSH_OPTS[@]}" -o BatchMode=yes "$SERVER" true \
   || fail "cannot reach $SERVER over ssh — check scripts/box.conf and your ssh key (nothing was checked or shipped)"
 
 if [[ "$CHECK_ONLY" -eq 0 ]]; then
-  bash scripts/box_gate.sh "$SERVER" "$DEST" "${NEWLY_MANAGED[@]}" || fail "box gate stopped the deploy (see above)"
+  bash scripts/box_gate.sh "$SERVER" "$DEST" "${FILES[@]}" || fail "box gate stopped the deploy (see above)"
 fi
 
 NEED_RESTART=0
 MISMATCH=0
 
+# HOST-01: the OVH box allows no root login (box-harden.sh). As root (the Hetzner box), everything below is unchanged.
+# As any other user, files are staged in a private folder and installed with sudo, owned by root as on the old box, and
+# box commands run through `sudo -n` (passwordless, from box-harden.sh; a prompt fails instead of waiting).
+SUDO=""
+if [[ "${SERVER%%@*}" != "root" ]]; then SUDO="sudo -n"; fi
+
 # scp does not create directories; a first deploy of a new folder (quote_cards/,
 # BrandAssets/fonts/ibm-plex/ for CARD-05) would otherwise fail on its first file.
 if [[ "$CHECK_ONLY" -eq 0 ]]; then
   dirs=$(for f in "${FILES[@]}"; do d=$(dirname "$f"); [[ "$d" == "." ]] || echo "$DEST/$d"; done | sort -u | tr '\n' ' ')
-  ssh "${SSH_OPTS[@]}" "$SERVER" "mkdir -p $dirs" || fail "could not create directories on the server"
+  ssh "${SSH_OPTS[@]}" "$SERVER" "$SUDO mkdir -p $dirs" || fail "could not create directories on the server"
+fi
+
+if [[ "$CHECK_ONLY" -eq 0 && -n "$SUDO" ]]; then
+  # One tar over ssh into a private staging folder, then sudo install each file in place (owner root, the file's mode).
+  # The checksum loop below then proves the installed bytes, file by file, exactly as for a root deploy.
+  STAGE="/tmp/deploy-stage-$$"
+  for f in "${FILES[@]}"; do [[ -f "$f" ]] || fail "local file missing: $f"; done
+  # The stage folder is private (0700); the files keep their own modes (tar -p), never the umask's (Toby: a umask of
+  # 077 had made every installed file root:root 0600, unreadable to the worker).
+  # COPYFILE_DISABLE: macOS tar otherwise ships ._ AppleDouble files for every file with an xattr (one landed on the box).
+  COPYFILE_DISABLE=1 tar -cf - "${FILES[@]}" | ssh "${SSH_OPTS[@]}" "$SERVER" "set -e; rm -rf $STAGE; mkdir -m 700 $STAGE; tar -C $STAGE -xpf -
+    cd $STAGE; find . -type f | while read -r f; do sudo -n install -D -o root -g root -m \$(stat -c %a \"\$f\") \"\$f\" \"$DEST/\${f#./}\"; done
+    rm -rf $STAGE" || fail "staged install failed — the box may be partially updated and nothing was restarted; run the deploy again"
+  for f in "${FILES[@]}"; do [[ "$f" == *.py ]] && NEED_RESTART=1; done
 fi
 
 for f in "${FILES[@]}"; do
   [[ -f "$f" ]] || fail "local file missing: $f"
 
-  if [[ "$CHECK_ONLY" -eq 0 ]]; then
+  if [[ "$CHECK_ONLY" -eq 0 && -z "$SUDO" ]]; then
     scp -q "${SSH_OPTS[@]}" "$f" "$SERVER:$DEST/$f" || fail "scp failed for $f"
     [[ "$f" == *.py ]] && NEED_RESTART=1
   fi
@@ -242,9 +237,15 @@ done
 
 [[ "$MISMATCH" -eq 1 ]] && fail "checksum mismatch — server does not match local"
 
+# HOST-01: the reels need production's ffmpeg 8.0.x (Ubuntu 26.04's 8.0.1 on the old box; the pinned 8.0.1 build on
+# the VPS-2). A swap back to 24.04's 6.1 would render quietly differently: say the version, and stop on anything else.
+ffv=$(ssh "${SSH_OPTS[@]}" "$SERVER" "ffmpeg -hide_banner -version 2>/dev/null | head -1") || ffv=""
+echo "[deploy] box ffmpeg: ${ffv:-none}"
+[[ "$ffv" =~ ^ffmpeg\ version\ n?8\.0\. ]] || fail "the box's ffmpeg is not 8.0.x — reels would render on another version"
+
 if [[ "$CHECK_ONLY" -eq 0 && "$REBUILD_CLOSING" -eq 1 ]]; then
   echo "[deploy] rebuilding closing asset on server..."
-  ssh "${SSH_OPTS[@]}" "$SERVER" "cd $DEST && BRAND_ASSETS_DIR=$DEST/BrandAssets FFMPEG_BIN=\$(command -v ffmpeg) bash scripts/render_closing_sequence.sh" \
+  ssh "${SSH_OPTS[@]}" "$SERVER" "cd $DEST && $SUDO env BRAND_ASSETS_DIR=$DEST/BrandAssets FFMPEG_BIN=\$(command -v ffmpeg) bash scripts/render_closing_sequence.sh" \
     || fail "server-side closing asset rebuild failed"
 fi
 
@@ -255,10 +256,29 @@ if [[ "$CHECK_ONLY" -eq 0 && "$NEED_RESTART" -eq 1 ]]; then
   # BOTH long-running services import the shared modules (db, drive_client,
   # gmail_client, anthropic_client), so any .py deploy restarts both — webhook
   # was previously left running stale code because only the worker was bounced.
-  echo "[deploy] .py deployed — restarting rockstar-worker + rockstar-webhook..."
-  ssh "${SSH_OPTS[@]}" "$SERVER" "systemctl restart rockstar-worker rockstar-webhook && systemctl is-active rockstar-worker rockstar-webhook" \
-    || fail "a service did not come back active after restart"
-  echo "[deploy] rockstar-worker + rockstar-webhook active"
+  # HOST-01: only a box whose services are enabled is restarted. A box before its cutover has them installed but not
+  # enabled, and starting them there would put two boxes on the same Drive and Gmail feeds. Nothing is started there.
+  # Restart only a worker that is running. Enabled but stopped (paused for a measurement, or failed) is said, not
+  # started; not enabled (a box before its cutover) starts nothing. Anything else (a lost ssh) fails the deploy.
+  wstate=$(ssh "${SSH_OPTS[@]}" "$SERVER" "echo \$(systemctl is-active rockstar-worker) \$(systemctl is-enabled rockstar-worker)") \
+    || fail "lost ssh reading the worker's state — new .py files are on the box and NOTHING was restarted; run the deploy again"
+  case "$wstate" in
+    "active "*)
+      echo "[deploy] .py deployed — restarting rockstar-worker + rockstar-webhook..."
+      ssh "${SSH_OPTS[@]}" "$SERVER" "$SUDO systemctl restart rockstar-worker rockstar-webhook && systemctl is-active rockstar-worker rockstar-webhook" \
+        || fail "a service did not come back active after restart"
+      echo "[deploy] rockstar-worker + rockstar-webhook active" ;;
+    *" disabled")
+      echo "[deploy] .py deployed — rockstar-worker is not enabled on this box (before its cutover): nothing started" ;;
+    *" enabled")
+      # The webhook imports the same shared modules: restart it if it's running (try-restart starts nothing).
+      ssh "${SSH_OPTS[@]}" "$SERVER" "$SUDO systemctl try-restart rockstar-webhook" \
+        || fail "could not restart rockstar-webhook (the worker was left stopped)"
+      echo "[deploy] .py deployed — rockstar-worker is enabled but ${wstate%% *} (paused or failed): NOT started; the new"
+      echo "[deploy] code runs when it next starts. rockstar-webhook restarted if it was running."
+      echo "[deploy] To start the worker now: ssh to the box, systemctl restart rockstar-worker" ;;
+    *) fail "unexpected worker state '$wstate' — new .py files are on the box and NOTHING was restarted" ;;
+  esac
 fi
 
 # local==git==deploy: git was proved clean and equal to origin/main BEFORE any ssh (SHARE-01), and the checksums

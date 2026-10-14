@@ -92,8 +92,21 @@ def _make_env(tmp: Path, with_token: bool):
     ep = fake_home / "RockstarPodcast" / "hf01-ep"
     ep.mkdir(parents=True)
     subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=r=16000:cl=mono",
-         "-t", "1", "-c:a", "aac", str(ep / "hf01.m4a")],
+        [
+            "ffmpeg",
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=r=16000:cl=mono",
+            "-t",
+            "1",
+            "-c:a",
+            "aac",
+            str(ep / "hf01.m4a"),
+        ],
         check=True,
     )
     env = {
@@ -113,7 +126,10 @@ def _make_env(tmp: Path, with_token: bool):
 def _run(ep: Path, env: dict):
     return subprocess.run(
         ["bash", str(SCRIPTS / "transcribe_fast.sh"), str(ep), "hf01"],
-        env=env, capture_output=True, text=True, timeout=120,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
     )
 
 

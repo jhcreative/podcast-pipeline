@@ -39,6 +39,8 @@ will do the most work for Heather's search visibility and topical authority.
 
 3. **Quotability.** The quote must be standalone-intelligible — a listener who hears only
    those 15–30 seconds should understand what was said and feel something.
+   Every quote becomes a reel: from its first word to its last as spoken, joins included, it must fit
+   `quote_ceiling_seconds` (episode metadata). Lisa can keep a rare, really good one longer.
 
 4. **Complete ideas only.** The quote must start at the beginning of a thought and end at
    its natural conclusion. A quote that starts mid-argument or cuts off before resolution
@@ -75,7 +77,7 @@ Return ONLY valid JSON. No preamble, no explanation, no markdown fences.
     {
       "id": "q01",
       "speaker": "Heather | [Guest Name]",
-      "text": "The exact words from the transcript",
+      "text": "The exact words from the transcript (cut, never reworded: ST-10)",
       "heading": "The Idea This Quote Carries, in Title Case",
       "transcript_start_ms": 0,
       "transcript_end_ms": 0,
@@ -88,16 +90,21 @@ Return ONLY valid JSON. No preamble, no explanation, no markdown fences.
   ]
 }
 
-**`heading`** — the blog post prints it as the heading above this quote (the Episode
-Highlights h3), so every quote needs one:
-- Title Case, 60 characters or fewer, no trailing period.
-- Name the IDEA the quote carries, never the speaker ("The Bliss Molecule You're Running
-  Low On", not "Dr. Leyla on Anandamide").
-- Specific over generic, like the live posts: "The Fifth Pillar: Microplastics and Hormone
-  Health", "Sauerkraut, Skin, and the Limits of Probiotics", "The Brain Restructuring
-  Nobody Told You About", "The Triathlete Bacteria Study".
-- It may reuse a Conversations bullet lead when the quote is that bullet's moment.
-A quote without a heading fails Phase 1 (content_gates.assert_quote_headings).
+**`heading`** — the quote's ONE title (TITLE-02). The blog post prints it above the quote (the Episode
+Highlights h3) and the quote's card carousel puts it on its cover, so it must read well in both, and code checks
+every one:
+- 2–8 words, **at most 44 characters**, Title Case, no trailing period. The cover's type does not shrink.
+- Name the IDEA the quote carries, never the speaker ("The Bliss Molecule Running Low", not "Dr. Leyla on
+  Anandamide").
+- Never five or more words in a row from the quote: the quote is right below it.
+- Write "and", never "&". No question or exclamation marks, ellipses, emoji, hashtags, handles or URLs.
+- No first person (I, my, me): the quote is the speaker's voice; the title is the show's.
+- No claims words (cures, heals, treats, prevents, works, clinically proven, miracle, guaranteed) and no bait
+  ("secret", "shocking", "hack", "nobody tells you", "the truth about", "game changer", "honestly").
+- Specific over generic, like the live posts: "The Fifth Pillar: Microplastics", "Sauerkraut, Skin and
+  Probiotics", "The Brain Restructuring in Midlife", "The Triathlete Bacteria Study".
+- It may reuse a Conversations bullet lead when the quote is that bullet's moment and it fits.
+A heading that breaks a rule is rewritten after you (quote_title.ensure); write it right the first time.
 
 Set transcript_start_ms / transcript_end_ms to 0 — the pipeline populates them later
 via WhisperX word-level alignment. Your job is selection, not timestamp lookup.

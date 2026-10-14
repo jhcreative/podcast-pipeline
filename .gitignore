@@ -64,3 +64,8 @@ scripts/MAC_PM_TICK_INSTALL.md
 
 # SHARE-01: the box address stays out of the repo
 scripts/box.conf
+scripts/box-new.conf
+
+# Chromium for the card renderer on the box (scripts/box-card-setup.sh)
+/ms-playwright/
+

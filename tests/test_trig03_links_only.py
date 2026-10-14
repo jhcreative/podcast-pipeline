@@ -39,15 +39,18 @@ import tempfile
 import types
 from pathlib import Path
 
+import _swap as _fakes  # noqa: E402 — tests/: fakes go on the package too
+
 REPO = Path(__file__).resolve().parent.parent  # the repo root: tests/ is one level down
 sys.path.insert(0, str(REPO))
 STATE = Path(tempfile.mkdtemp(prefix="trig03-"))
 os.environ["STATE_DIR"] = str(STATE)
 AUTH = json.loads((REPO / "tests" / "fixtures" / "trig03" / "auth_headers.json").read_text())
 
-import blog_publish  # noqa: E402
-import publisher_email as pe  # noqa: E402
 import test_blog02b_tailor_write as b2  # noqa: E402  — FakeTailor, Env, the blog fixtures
+
+from rockstar.clients import publisher_email as pe  # noqa: E402
+from rockstar.content import blog_publish  # noqa: E402
 
 SHOW_APPLE = "https://podcasts.apple.com/us/podcast/genx-hits-menopause/id1785708777"
 SHOW_SPOTIFY = "https://open.spotify.com/show/3CIrqvlAWVsin0ZwFzykv6"
@@ -57,8 +60,9 @@ SUBJECT = "Your Episode is Live | EP 33 GenX Hits Menopause"
 
 
 def _hdrs(case: dict) -> list[dict]:
-    return ([{"name": "From", "value": case["from"]}]
-            + [{"name": "Authentication-Results", "value": v} for v in case["authentication_results"]])
+    return [{"name": "From", "value": case["from"]}] + [
+        {"name": "Authentication-Results", "value": v} for v in case["authentication_results"]
+    ]
 
 
 # ── AC-10: the sender ─────────────────────────────────────────────────────────
@@ -80,27 +84,53 @@ def test_sender_forgeries_refused():
 
 def test_sender_aligned_dkim_alone_passes_unaligned_does_not():
     base = "Publisher <x@publisher.example.test>"
-    ok, _ = pe.authenticated_sender(_hdrs({"from": base, "authentication_results": [
-        "mx.google.com; dkim=pass header.i=@send.publisher.example.test header.s=resend; spf=pass"]}))
+    ok, _ = pe.authenticated_sender(
+        _hdrs(
+            {
+                "from": base,
+                "authentication_results": [
+                    "mx.google.com; dkim=pass header.i=@send.publisher.example.test header.s=resend; spf=pass"
+                ],
+            }
+        )
+    )
     assert ok, "a DKIM signature from a subdomain of the From domain is aligned (relaxed)"
-    ok, _ = pe.authenticated_sender(_hdrs({"from": base, "authentication_results": [
-        "mx.google.com; dkim=pass header.i=@publisher.example.test.attacker.example"]}))
+    ok, _ = pe.authenticated_sender(
+        _hdrs(
+            {
+                "from": base,
+                "authentication_results": ["mx.google.com; dkim=pass header.i=@publisher.example.test.attacker.example"],
+            }
+        )
+    )
     assert not ok, "a signer that merely CONTAINS the domain is not aligned"
 
 
 def test_sender_arc_comment_is_not_google_verdict():
     # ARC's comment carries its own 'dkim=pass … dmarc=pass'; with comments removed nothing passes.
-    ok, why = pe.authenticated_sender(_hdrs({"from": "P <x@legacy-publisher.example.test>", "authentication_results": [
-        "mx.google.com; arc=pass (i=1 spf=pass dkim=pass dkdomain=legacy-publisher.example.test dmarc=pass "
-        "fromdomain=legacy-publisher.example.test); spf=fail smtp.mailfrom=a@attacker.example"]}))
+    ok, why = pe.authenticated_sender(
+        _hdrs(
+            {
+                "from": "P <x@legacy-publisher.example.test>",
+                "authentication_results": [
+                    "mx.google.com; arc=pass (i=1 spf=pass dkim=pass dkdomain=legacy-publisher.example.test dmarc=pass "
+                    "fromdomain=legacy-publisher.example.test); spf=fail smtp.mailfrom=a@attacker.example"
+                ],
+            }
+        )
+    )
     assert not ok, why
 
 
 def test_sender_one_from_address_only():
     ar = ["mx.google.com; dmarc=pass header.from=legacy-publisher.example.test"]
-    ok, _ = pe.authenticated_sender(_hdrs({"from": "y@legacy-publisher.example.test, x@attacker.example", "authentication_results": ar}))
+    ok, _ = pe.authenticated_sender(
+        _hdrs({"from": "y@legacy-publisher.example.test, x@attacker.example", "authentication_results": ar})
+    )
     assert not ok, "two From addresses"
-    two = _hdrs({"from": "y@legacy-publisher.example.test", "authentication_results": ar}) + [{"name": "From", "value": "x@attacker.example"}]
+    two = _hdrs({"from": "y@legacy-publisher.example.test", "authentication_results": ar}) + [
+        {"name": "From", "value": "x@attacker.example"}
+    ]
     ok, _ = pe.authenticated_sender(two)
     assert not ok, "two From headers"
 
@@ -143,10 +173,17 @@ def _draft_with_show_links():
 
 
 def _swap(e, **kw):
-    args = dict(episode_code="E31", mapping={SHOW_APPLE: EP_APPLE, SHOW_SPOTIFY: EP_SPOTIFY},
-                api_base=b2.API, public_base=b2.PUBLIC, credentials=(b2.EMAIL, b2.PASSWORD),
-                record_path=e.tmp / "blog_posts.json", lock_path=e.tmp / "tailor_blog.lock",
-                transport=e.fake, lock_timeout=0)
+    args = dict(
+        episode_code="E31",
+        mapping={SHOW_APPLE: EP_APPLE, SHOW_SPOTIFY: EP_SPOTIFY},
+        api_base=b2.API,
+        public_base=b2.PUBLIC,
+        credentials=(b2.EMAIL, b2.PASSWORD),
+        record_path=e.tmp / "blog_posts.json",
+        lock_path=e.tmp / "tailor_blog.lock",
+        transport=e.fake,
+        lock_timeout=0,
+    )
     args.update(kw)
     return blog_publish.swap_listen_links(**args)
 
@@ -163,6 +200,7 @@ def _ctas(blocks):
                 out.append((n.get("label"), n.get("href")))
             for v in n.values():
                 walk(v)
+
     walk(blocks)
     return out
 
@@ -188,8 +226,9 @@ def test_swap_changes_only_the_listen_buttons():
     assert put["html"] == put["js"] == put["scss"] == "" and put["title"] == page["title"]
     ctas = dict(_ctas(page["blocks"]))
     assert ctas["Listen on Apple"] == EP_APPLE and ctas["Listen on Spotify"] == EP_SPOTIFY, ctas
-    assert _without_hrefs(before, [SHOW_APPLE, SHOW_SPOTIFY]) == _without_hrefs(page["blocks"], [EP_APPLE, EP_SPOTIFY]), \
-        "every other block must be byte-identical"
+    assert _without_hrefs(before, [SHOW_APPLE, SHOW_SPOTIFY]) == _without_hrefs(
+        page["blocks"], [EP_APPLE, EP_SPOTIFY]
+    ), "every other block must be byte-identical"
     # The draft was ours and is ours again: a later full run may still update it.
     again = e.publish()
     assert again.outcome == "updated", again
@@ -254,6 +293,7 @@ def test_swap_edited_between_read_and_write_stops():
         gets["n"] += 1
         if gets["n"] == 2:  # the C-9 re-read
             page["blocks"].append({"type": "p", "inlines": [{"text": "typed just now"}]})
+
     e.fake.on_get = on_get
     puts = len(e.fake.calls("PUT"))
     try:
@@ -296,8 +336,13 @@ class FakeGmail(types.ModuleType):
     def add_draft(self, to, subject, body, single=True):
         self.n += 1
         did = f"d{self.n}"
-        self.drafts[did] = {"to": to, "subject": subject, "body": body, "message_id": f"m{self.n}",
-                            "single_text_plain": single}
+        self.drafts[did] = {
+            "to": to,
+            "subject": subject,
+            "body": body,
+            "message_id": f"m{self.n}",
+            "single_text_plain": single,
+        }
         return did
 
     # the gmail_client surface publish_finalize uses
@@ -352,13 +397,18 @@ class _NoDrive(types.ModuleType):
 
 
 def _pf(gmail):
-    for name, mod in (("gmail_client", gmail), ("drive_client", _NoDrive("drive_client")),
-                      ("anthropic_client", _NoModel("anthropic_client")),
-                      ("calendar_client", types.ModuleType("calendar_client")),
-                      ("db", types.ModuleType("db")), ("workspace", types.ModuleType("workspace"))):
-        sys.modules[name] = mod
-    sys.modules.pop("jobs.publish_finalize", None)
-    import jobs.publish_finalize as pf
+    for name, mod in (
+        ("gmail_client", gmail),
+        ("drive_client", _NoDrive("drive_client")),
+        ("anthropic_client", _NoModel("anthropic_client")),
+        ("calendar_client", types.ModuleType("calendar_client")),
+        ("db", types.ModuleType("db")),
+        ("workspace", types.ModuleType("workspace")),
+    ):
+        _fakes.put(name, mod)
+    _fakes.pop("rockstar.jobs.publish_finalize", None)
+    from rockstar.jobs import publish_finalize as pf
+
     return pf
 
 
@@ -370,36 +420,77 @@ def _fake_swap(outcome="swapped", stop=None):
         SWAPS.append(kw)
         if stop:
             raise blog_publish.BlogStop(stop)
-        return blog_publish.SwapResult(outcome, "https://rockstarblends.com/blog/e33", 2 if outcome == "swapped" else 0,
-                                       True, "" if outcome == "swapped" else "a reason")
+        return blog_publish.SwapResult(
+            outcome,
+            "https://rockstarblends.com/blog/e33",
+            2 if outcome == "swapped" else 0,
+            True,
+            "" if outcome == "swapped" else "a reason",
+        )
+
     return swap
 
 
-def _setup(*, pending=True, done=True, ty="untouched", email_apple=EP_APPLE, email_spotify=EP_SPOTIFY + "?si=abc",
-           subject=SUBJECT, headers_case=None, swap=None, others=None, title_in_email="Same Alarm, Different House",  # E33's real shape: 3 of 8 words
-           guest_email="guest@example.test", flag_pending=None):
+def _setup(
+    *,
+    pending=True,
+    done=True,
+    ty="untouched",
+    email_apple=EP_APPLE,
+    email_spotify=EP_SPOTIFY + "?si=abc",
+    subject=SUBJECT,
+    headers_case=None,
+    swap=None,
+    others=None,
+    title_in_email="Same Alarm, Different House",  # E33's real shape: 3 of 8 words
+    guest_email="guest@example.test",
+    flag_pending=None,
+):
     """E33 after Phase 2 on the show pages, our thank-you draft, and the publisher email arriving."""
     case = headers_case or AUTH["pass"][1]
     headers = _hdrs(case) + [{"name": "Subject", "value": subject}]
-    html = (f'<p>{title_in_email}</p> <a href="{email_apple}">Apple</a> <a href="{email_spotify}">Spotify</a>'
-            if title_in_email else f'<a href="{email_apple}">Apple</a> <a href="{email_spotify}">Spotify</a>')
+    html = (
+        f'<p>{title_in_email}</p> <a href="{email_apple}">Apple</a> <a href="{email_spotify}">Spotify</a>'
+        if title_in_email
+        else f'<a href="{email_apple}">Apple</a> <a href="{email_spotify}">Spotify</a>'
+    )
     g = FakeGmail(headers, html)
     pf = _pf(g)
-    import thank_you
-    t = thank_you.build_draft(guest_name="Rowan Example", episode_title="Different House, Same Alarm | Clearing Trauma's Charge with Rowan Example",
-                              apple_url=SHOW_APPLE, spotify_url=SHOW_SPOTIFY,
-                              blog_url="https://rockstarblends.com/blog/e33", guest_email=guest_email)
-    ep = {"episode_number": 33, "episode_code": "E33", "drive_folder_id": "F33", "status": "done",
-          "pipeline_done": done, "episode_links_pending": pending if flag_pending is None else flag_pending,
-          "guest_name": "Rowan Example", "guest_email": guest_email, "episode_title": "Different House, Same Alarm | Clearing Trauma's Charge with Rowan Example",
-          "blog_post_url": "https://rockstarblends.com/blog/e33", "apple_url": SHOW_APPLE,
-          "spotify_url": SHOW_SPOTIFY, "notes": "Phase 2 complete 2026-10-06 (episode links pending)"}
+    from rockstar.content import thank_you
+
+    t = thank_you.build_draft(
+        guest_name="Rowan Example",
+        episode_title="Different House, Same Alarm | Clearing Trauma's Charge with Rowan Example",
+        apple_url=SHOW_APPLE,
+        spotify_url=SHOW_SPOTIFY,
+        blog_url="https://rockstarblends.com/blog/e33",
+        guest_email=guest_email,
+    )
+    ep = {
+        "episode_number": 33,
+        "episode_code": "E33",
+        "drive_folder_id": "F33",
+        "status": "done",
+        "pipeline_done": done,
+        "episode_links_pending": pending if flag_pending is None else flag_pending,
+        "guest_name": "Rowan Example",
+        "guest_email": guest_email,
+        "episode_title": "Different House, Same Alarm | Clearing Trauma's Charge with Rowan Example",
+        "blog_post_url": "https://rockstarblends.com/blog/e33",
+        "apple_url": SHOW_APPLE,
+        "spotify_url": SHOW_SPOTIFY,
+        "notes": "Phase 2 complete 2026-10-06 (episode links pending)",
+    }
     if not pending:
         ep["apple_url"], ep["spotify_url"] = EP_APPLE, EP_SPOTIFY
     if ty != "none":
         did = g.add_draft(t["to"], t["subject"], t["body"])
-        ep["ty_draft"] = {"draft_id": did, "message_id": g.drafts[did]["message_id"],
-                          "sha256": pf._ty_fingerprint(g.draft_state(did)), "single_text_plain": True}
+        ep["ty_draft"] = {
+            "draft_id": did,
+            "message_id": g.drafts[did]["message_id"],
+            "sha256": pf._ty_fingerprint(g.draft_state(did)),
+            "single_text_plain": True,
+        }
         d = g.drafts[did]
         if ty == "edited":
             d["body"] += "\nP.S. Loved talking with you!"
@@ -409,10 +500,20 @@ def _setup(*, pending=True, done=True, ty="untouched", email_apple=EP_APPLE, ema
             d["single_text_plain"] = False
         elif ty == "gone":
             del g.drafts[did]
-    episodes = [ep] + (others or [{"episode_number": 31, "episode_code": "E31", "drive_folder_id": "F31",
-                                   "episode_title": "Bliss Is the System | The ECS", "pipeline_done": True,
-                                   "apple_url": SHOW_APPLE.replace("genx", "x") + "?i=1000000000031",
-                                   "spotify_url": "https://open.spotify.com/episode/0SynthEp31AbCdEfGhJkLm"}])
+    episodes = [ep] + (
+        others
+        or [
+            {
+                "episode_number": 31,
+                "episode_code": "E31",
+                "drive_folder_id": "F31",
+                "episode_title": "Bliss Is the System | The ECS",
+                "pipeline_done": True,
+                "apple_url": SHOW_APPLE.replace("genx", "x") + "?i=1000000000031",
+                "spotify_url": "https://open.spotify.com/episode/0SynthEp31AbCdEfGhJkLm",
+            }
+        ]
+    )
     (STATE / "publication_schedule.json").write_text(json.dumps({"episodes": episodes}))
     SWAPS.clear()
     blog_publish.swap_listen_links = swap or _fake_swap()
@@ -425,15 +526,20 @@ def _run(pf):
 
 
 def _ep33():
-    return next(e for e in json.loads((STATE / "publication_schedule.json").read_text())["episodes"]
-                if e["episode_number"] == 33)
+    return next(
+        e
+        for e in json.loads((STATE / "publication_schedule.json").read_text())["episodes"]
+        if e["episode_number"] == 33
+    )
 
 
 def test_images_first_then_email_swaps_links_only():
     pf, g = _setup()
     _run(pf)  # the fake model and the fake Drive fail the test if Phase 2 runs
-    assert len(SWAPS) == 1 and SWAPS[0]["mapping"] == {pf._SHOW_APPLE_URL: EP_APPLE, pf._SHOW_SPOTIFY_URL: EP_SPOTIFY}, \
-        "the blog swap maps show → episode, with Spotify's ?si= removed"
+    assert len(SWAPS) == 1 and SWAPS[0]["mapping"] == {
+        pf._SHOW_APPLE_URL: EP_APPLE,
+        pf._SHOW_SPOTIFY_URL: EP_SPOTIFY,
+    }, "the blog swap maps show → episode, with Spotify's ?si= removed"
     assert len(g.drafts) == 1 and g.updates == ["d1"], "exactly one draft, updated in place (same id)"
     d = g.drafts["d1"]
     # the episode link STARTS with the show link, so look for the bare show link (end of line) instead
@@ -464,8 +570,9 @@ def test_draft_left_alone_when_edited_resaved_attached_gone_or_unrecorded():
         ep = _ep33()
         assert ep["episode_links_pending"] is True, f"{ty}: a manual step is left, the record says so"
         assert ep["apple_url"] == EP_APPLE, f"{ty}: the real links are recorded"
-        assert "Thank-you" in g.alerts[0][1] and ("by hand" in g.alerts[0][1] or "gone" in g.alerts[0][1]), \
+        assert "Thank-you" in g.alerts[0][1] and ("by hand" in g.alerts[0][1] or "gone" in g.alerts[0][1]), (
             f"{ty}: {g.alerts}"
+        )
 
 
 def test_e32_shape_post_gone_alerts_and_composes_nothing():
@@ -478,24 +585,43 @@ def test_e32_shape_post_gone_alerts_and_composes_nothing():
 
 
 def test_links_refused_show_pages_other_show_or_taken_ids():
-    for label, kw in (("show pages", dict(email_apple=SHOW_APPLE, email_spotify="https://open.spotify.com/episode/short")),
-                      ("other show", dict(email_apple=EP_APPLE.replace("id1785708777", "id1111111111")))):
+    for label, kw in (
+        ("show pages", dict(email_apple=SHOW_APPLE, email_spotify="https://open.spotify.com/episode/short")),
+        ("other show", dict(email_apple=EP_APPLE.replace("id1785708777", "id1111111111"))),
+    ):
         pf, g = _setup(**kw)
         before = (STATE / "publication_schedule.json").read_text()
         _run(pf)
         assert not SWAPS and not g.updates, label
         assert (STATE / "publication_schedule.json").read_text() == before, f"{label}: nothing written"
         assert "links refused" in g.alerts[0][0], (label, g.alerts)
-    taken = [{"episode_number": 31, "episode_code": "E31", "drive_folder_id": "F31", "episode_title": "x",
-              "apple_url": EP_APPLE, "spotify_url": ""}]
+    taken = [
+        {
+            "episode_number": 31,
+            "episode_code": "E31",
+            "drive_folder_id": "F31",
+            "episode_title": "x",
+            "apple_url": EP_APPLE,
+            "spotify_url": "",
+        }
+    ]
     pf, g = _setup(others=taken)
     _run(pf)
     assert not SWAPS and "already belongs to E31" in g.alerts[0][1], g.alerts
 
 
 def test_another_episode_matching_as_well_stops():
-    rival = [{"episode_number": 34, "episode_code": "E34", "drive_folder_id": "F34", "pipeline_done": False,
-              "episode_title": "Same Alarm, Different House, Again | Part Two", "apple_url": "", "spotify_url": ""}]
+    rival = [
+        {
+            "episode_number": 34,
+            "episode_code": "E34",
+            "drive_folder_id": "F34",
+            "pipeline_done": False,
+            "episode_title": "Same Alarm, Different House, Again | Part Two",
+            "apple_url": "",
+            "spotify_url": "",
+        }
+    ]
     pf, g = _setup(others=rival)
     _run(pf)
     assert not SWAPS and not g.updates and "names two episodes" in g.alerts[0][0], g.alerts
@@ -503,7 +629,6 @@ def test_another_episode_matching_as_well_stops():
 
 
 def test_title_word_rule_on_the_real_shapes():
-    import importlib
     pf, g = _setup()
     e33 = {"episode_title": "Different House, Same Alarm | Clearing Trauma's Charge with Rowan Example"}
     e32 = {"episode_title": "The Apothecary in Your Yard | Food, Trust & Going Rogue with Linnea Ashgrovenly"}
@@ -585,6 +710,7 @@ def test_retry_after_an_update_that_succeeded_is_not_called_a_hand_edit():
         if calls["n"] == 2:  # the read-back right after the update
             raise ConnectionError("simulated Gmail 503 on the read-back")
         return real_state(did)
+
     g.draft_state = flaky_state
     try:
         _run(pf)
@@ -627,15 +753,15 @@ def test_sender_parser_refuses_ambiguous_headers():
     F = "P <x@legacy-publisher.example.test>"
     probes = {
         "quoted local part": 'mx.google.com; spf=pass (google.com: domain of "a)b;dkim=pass header.d=legacy-publisher.example.test x"'
-                             '@attacker.example designates 1.2.3.4) smtp.mailfrom="a)b;dkim=pass header.d=legacy-publisher.example.test x"'
-                             '@attacker.example; dmarc=fail header.from=legacy-publisher.example.test',
+        '@attacker.example designates 1.2.3.4) smtp.mailfrom="a)b;dkim=pass header.d=legacy-publisher.example.test x"'
+        "@attacker.example; dmarc=fail header.from=legacy-publisher.example.test",
         "two dmarc clauses": "mx.google.com; dmarc=fail header.from=legacy-publisher.example.test; dmarc=pass header.from=legacy-publisher.example.test",
         "extra close paren": "mx.google.com; spf=pass (x) y) dkim=pass header.d=legacy-publisher.example.test",
         "dkim conflict": "mx.google.com; dkim=fail header.d=legacy-publisher.example.test; dkim=pass header.d=legacy-publisher.example.test",
         "dmarc for another domain": "mx.google.com; dkim=pass header.d=legacy-publisher.example.test; dmarc=pass header.from=attacker.example",
         # Only the guards catch these two: no other rule would refuse them.
         "quote smuggles a clause, no dmarc": 'mx.google.com; spf=pass (google.com: domain of "x); dkim=pass '
-                                             'header.d=legacy-publisher.example.test; (y"@attacker.example designates 1.2.3.4)',
+        'header.d=legacy-publisher.example.test; (y"@attacker.example designates 1.2.3.4)',
         "pass written before fail": "mx.google.com; dmarc=pass header.from=legacy-publisher.example.test; dmarc=fail header.from=legacy-publisher.example.test",
         # Only the parenthesis guards catch this one (re-review, finding 2).
         "unbalanced, trailing open paren": "mx.google.com; spf=pass (x) ; dkim=pass header.d=legacy-publisher.example.test; (y",
@@ -653,15 +779,26 @@ def test_gmail_wrappers_against_a_fake_api():
     import base64
     import email.message
     import importlib
-    sys.modules.pop("gmail_client", None)
-    gc = importlib.import_module("gmail_client")
+
+    _fakes.pop("rockstar.clients.gmail_client", None)
+    gc = importlib.import_module("rockstar.clients.gmail_client")
 
     class HttpError(Exception):
         def __init__(self, status):
             self.resp = types.SimpleNamespace(status=status)
 
-    store = {"d1": {"id": "d1", "message": {"id": "m1", "payload": {"mimeType": "text/plain", "headers": [
-        {"name": "To", "value": "guest@example.test"}, {"name": "Subject", "value": "Thanks"}]}}}}
+    store = {
+        "d1": {
+            "id": "d1",
+            "message": {
+                "id": "m1",
+                "payload": {
+                    "mimeType": "text/plain",
+                    "headers": [{"name": "To", "value": "guest@example.test"}, {"name": "Subject", "value": "Thanks"}],
+                },
+            },
+        }
+    }
     raw_msg = email.message.EmailMessage()
     raw_msg["To"], raw_msg["Subject"] = "guest@example.test", "Thanks"
     raw_msg.set_content("Hello = there")
@@ -683,6 +820,7 @@ def test_gmail_wrappers_against_a_fake_api():
                 if format == "raw":
                     return {"message": {"raw": raw}}
                 return store[id]
+
             return Call(go)
 
         def update(self, userId, id, body):
@@ -708,7 +846,7 @@ def test_gmail_wrappers_against_a_fake_api():
         decoded = base64.urlsafe_b64decode(sent["body"]["message"]["raw"]).decode()
         assert "To: guest@example.test" in decoded and "New body" in decoded
     finally:
-        sys.modules.pop("gmail_client", None)
+        _fakes.pop("rockstar.clients.gmail_client", None)
 
 
 # ── Step 13: the draft is recorded as Gmail stored it ─────────────────────────
@@ -730,13 +868,17 @@ def test_record_ty_draft_reads_back_and_never_fails_the_job():
 
 def test_webhook_refuses_an_unauthenticated_publish_email():
     import test_pub01_idempotent_enqueue as p1
+
     db, path = p1._fresh_db("trig03.db")
     db.init_db()
     marked = []
     webhook_service, gc, saved, msg_id = p1._load_webhook_with_stubs(lambda mid: marked.append(mid))
     alerts = []
     gc.send_pipeline_alert = lambda to, subject, body: alerts.append(subject)
-    sys.modules["publisher_email"].authenticated_sender = lambda headers: (False, "dmarc=fail for legacy-publisher.example.test")
+    sys.modules["rockstar.clients.publisher_email"].authenticated_sender = lambda headers: (
+        False,
+        "dmarc=fail for legacy-publisher.example.test",
+    )
     try:
         webhook_service.db = db
         webhook_service._assert_pubsub_push = lambda authorization, env: None
@@ -752,6 +894,7 @@ def test_webhook_refuses_an_unauthenticated_publish_email():
 
 def test_webhook_refused_email_alert_fails_goes_back_to_unread():
     import test_pub01_idempotent_enqueue as p1
+
     db, path = p1._fresh_db("trig03-unread.db")
     db.init_db()
     marked, unmarked = [], []
@@ -759,9 +902,10 @@ def test_webhook_refused_email_alert_fails_goes_back_to_unread():
 
     def alert_down(**kw):
         raise ConnectionError("simulated Gmail 503 on send")
+
     gc.send_pipeline_alert = alert_down
     gc.mark_unread = lambda mid: unmarked.append(mid)
-    sys.modules["publisher_email"].authenticated_sender = lambda headers: (False, "dmarc=fail")
+    sys.modules["rockstar.clients.publisher_email"].authenticated_sender = lambda headers: (False, "dmarc=fail")
     try:
         webhook_service.db = db
         webhook_service._assert_pubsub_push = lambda authorization, env: None
@@ -787,6 +931,7 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             failed += 1
             import traceback
+
             print(f"  ERROR {t.__name__}: {type(e).__name__}: {e}")
             traceback.print_exc()
         finally:

@@ -4,7 +4,12 @@
 # SERVER is ALWAYS set here, never inherited: a SERVER left in the caller's shell must not redirect a deploy (cold
 # review of PR #38, Oliver/Orly — it sent 76 ssh calls to whatever host the variable named). The one override is the
 # explicit BOX_SERVER_OVERRIDE, which only the card scripts' rehearsal test sets.
-_box_conf="$(CDPATH= cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/box.conf"
+# box.conf names the box in service. HOST-01: deploy.sh --new-box sources this with the one argument __box_new__ to
+# read box-new.conf (the OVH box before its cutover). Never from the environment: an inherited variable must not
+# redirect a script, the same rule as SERVER below.
+_box_conf_file=box.conf
+[[ $# -eq 1 && "$1" == "__box_new__" ]] && _box_conf_file=box-new.conf   # exactly that one argument, nothing inherited
+_box_conf="$(CDPATH= cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$_box_conf_file"
 SERVER=""
 if [[ -n "${BOX_SERVER_OVERRIDE:-}" ]]; then
   SERVER="$BOX_SERVER_OVERRIDE"

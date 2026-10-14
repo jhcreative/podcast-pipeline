@@ -32,7 +32,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-EXPORT = REPO / "scripts" / "share_export.py"
+EXPORT = REPO / "rockstar" / "tools" / "share_export.py"
 _TMP: list[Path] = []
 GUEST = "Zephyrine Quillfeather"  # invented; stands in for a real guest's name
 
@@ -64,21 +64,29 @@ def _lists(deny: str = f"# guests\n{GUEST}\n", redact: str = "") -> tuple[Path, 
     return d / "deny.txt", d / "redact.tsv"
 
 
-def _export(src: Path, deny: Path, redact: Path, dest: Path | None = None, env: dict | None = None,
-            skip_tests: bool = True) -> tuple[subprocess.CompletedProcess, Path]:
+def _export(
+    src: Path, deny: Path, redact: Path, dest: Path | None = None, env: dict | None = None, skip_tests: bool = True
+) -> tuple[subprocess.CompletedProcess, Path]:
     dest = dest or _tmp("share02-dest-") / "out"
-    r = subprocess.run([sys.executable, str(EXPORT), str(dest), "--source", str(src), "--denylist", str(deny),
-                        "--redact", str(redact)] + (["--skip-tests"] if skip_tests else []),
-                       capture_output=True, text=True, timeout=300, env=env)
+    r = subprocess.run(
+        [sys.executable, str(EXPORT), str(dest), "--source", str(src), "--denylist", str(deny), "--redact", str(redact)]
+        + (["--skip-tests"] if skip_tests else []),
+        capture_output=True,
+        text=True,
+        timeout=300,
+        env=env,
+    )
     return r, dest
 
 
 def _scanners(gitleaks_exit: int = 0, trufflehog_out: str = "", missing: str = "") -> dict:
     """A PATH with stand-in scanners (so these tests don't depend on the real tools being installed)."""
     bin_ = _tmp("share02-bin-")
-    tools = {"gitleaks": f"#!/bin/sh\n[ \"$1\" = version ] && echo 8.0-fake && exit 0\nexit {gitleaks_exit}\n",
-             "trufflehog": "#!/bin/sh\n[ \"$1\" = --version ] && echo fake && exit 0\n"
-                           + (f"printf '%s\\n' '{trufflehog_out}'\nexit 183\n" if trufflehog_out else "exit 0\n")}
+    tools = {
+        "gitleaks": f'#!/bin/sh\n[ "$1" = version ] && echo 8.0-fake && exit 0\nexit {gitleaks_exit}\n',
+        "trufflehog": '#!/bin/sh\n[ "$1" = --version ] && echo fake && exit 0\n'
+        + (f"printf '%s\\n' '{trufflehog_out}'\nexit 183\n" if trufflehog_out else "exit 0\n"),
+    }
     for name, body in tools.items():
         if name != missing:
             (bin_ / name).write_text(body)
@@ -98,17 +106,67 @@ def test_denylisted_name_blocks_the_commit():
 
 
 def test_binary_hits_are_caught():
-    src = _source({"a.bin": b"\x00\x01" + GUEST.upper().encode() + b"\x00",
-                   "b.bin": b"\x00\xff" + GUEST.encode("utf-16-le") + b"\x00"})
+    src = _source(
+        {
+            "a.bin": b"\x00\x01" + GUEST.upper().encode() + b"\x00",
+            "b.bin": b"\x00\xff" + GUEST.encode("utf-16-le") + b"\x00",
+        }
+    )
     r, _ = _export(src, *_lists())
     assert "G4 a.bin contains denylist line 2" in r.stderr, "case-insensitive, in a binary: " + r.stderr
     assert "G4 b.bin contains denylist line 2" in r.stderr, "UTF-16, as fonts and some images store text: " + r.stderr
 
 
+def test_a_binary_coincidence_is_waived_only_by_its_exact_bytes_path_and_line():
+    """SHARE-03: a font's designer credits share a guest's first name. share/G4-WAIVED pins sha256 + path + list line;
+    other bytes, another line, or a text file, and the hit stands. The waiver is printed, never silent."""
+    import hashlib
+
+    body = b"\x00\x01credits: " + GUEST.encode() + b"\x00"
+    digest = hashlib.sha256(body).hexdigest()
+    tk = hashlib.sha256(GUEST.lower().encode()).hexdigest()[:12]
+    waiver = f"{digest}  font.ttf  denylist:2:{tk}  A-Person 2026-10-12  designer credit, not the guest\n"
+    text = f"{GUEST}\n".encode()
+    text_waiver = (
+        f"{hashlib.sha256(text).hexdigest()}  notes.md  denylist:2:{tk}  A-Person 2026-10-12  tries a text file\n"
+    )
+    src = _source({"font.ttf": body, "share/G4-WAIVED": waiver + text_waiver, "notes.md": text})
+    r, _ = _export(src, *_lists())
+    assert "G4 font.ttf" not in r.stderr and "G4 waived (share/G4-WAIVED): font.ttf denylist line 2" in r.stdout, (
+        r.stdout
+    )
+    assert "G4 notes.md contains denylist line 2" in r.stderr, "a text file is never waived: " + r.stderr
+    other = _source({"font.ttf": body + b"\x00", "share/G4-WAIVED": waiver})  # new bytes: the waiver is void
+    r, _ = _export(other, *_lists())
+    assert "G4 font.ttf contains denylist line 2" in r.stderr, r.stderr
+    line3 = _source({"font.ttf": body, "share/G4-WAIVED": waiver})  # the term moved to another line
+    r, _ = _export(line3, *_lists(deny=f"# guests\n# moved\n{GUEST}\n"))
+    assert "G4 font.ttf contains denylist line 3" in r.stderr, r.stderr
+    both = b"\x00credits: " + GUEST.encode() + b", Other Name\x00"  # the SAME bytes in both runs
+    w2 = f"{hashlib.sha256(both).hexdigest()}  font.ttf  denylist:2:{tk}  A-Person 2026-10-12  designer credit\n"
+    r, _ = _export(_source({"font.ttf": both, "share/G4-WAIVED": w2}), *_lists())
+    assert "G4 font.ttf" not in r.stderr, "the waiver holds for the term it names: " + r.stderr
+    r, _ = _export(_source({"font.ttf": both, "share/G4-WAIVED": w2}), *_lists(deny="# guests\nOther Name\n"))
+    assert "G4 font.ttf contains denylist line 2" in r.stderr, "line 2 now holds another name: no waiver: " + r.stderr
+    latin = _source(
+        {
+            "notes.bin": b"\x00" + GUEST.encode() + b"\x00",
+            "share/G4-WAIVED": f"{hashlib.sha256(b'\x00' + GUEST.encode() + b'\x00').hexdigest()}  notes.bin  "
+            f"denylist:2:{tk}  A-Person 2026-10-12  not a font\n",
+        }
+    )
+    r, _ = _export(latin, *_lists())
+    assert "G4 notes.bin contains denylist line 2" in r.stderr, "only fonts, images, audio and video are waivable"
+
+
 def test_redaction_allowlist_and_overlay():
-    src = _source({"notes/episode.md": f"Our guest {GUEST} talked about sleep.\n",
-                   "secret/box.md": "the box's address\n",
-                   "share/overlay/README.md": "# for a reviewer\n"})
+    src = _source(
+        {
+            "notes/episode.md": f"Our guest {GUEST} talked about sleep.\n",
+            "secret/box.md": "the box's address\n",
+            "share/overlay/README.md": "# for a reviewer\n",
+        }
+    )
     r, dest = _export(src, *_lists(redact=f"{GUEST}\tAvery Example\n"))
     assert "G4 denylist: 1 terms + 1 redaction-map terms over" in r.stdout and " 0 hits" in r.stdout, r.stdout
     assert (dest / "notes/episode.md").read_text() == "Our guest Avery Example talked about sleep.\n"
@@ -143,9 +201,13 @@ def test_unreviewed_binary_blocks_the_commit():
 
 def test_public_names_whole_words_and_g8():
     # Invented agent names: this file is itself exported, and real ones would be renamed in it.
-    src = _source({"share/PUBLIC_NAMES": "Quill\tVesper\n",
-                   "notes/team.md": "Quill reviewed it. Quillon Kirk wrote it. Quill's call. Quills.\n",
-                   "share/overlay/NOTES.md": "Thanks to Quill.\n"})
+    src = _source(
+        {
+            "share/PUBLIC_NAMES": "Quill\tVesper\n",
+            "notes/team.md": "Quill reviewed it. Quillon Kirk wrote it. Quill's call. Quills.\n",
+            "share/overlay/NOTES.md": "Thanks to Quill.\n",
+        }
+    )
     r, dest = _export(src, *_lists())
     assert (dest / "notes/team.md").read_text() == "Vesper reviewed it. Quillon Kirk wrote it. Vesper's call. Quills.\n"
     assert "G8 NOTES.md still names the agent 'Quill'" in r.stderr, "overlay text is checked too: " + r.stderr
@@ -164,8 +226,9 @@ def test_g4_scans_redaction_terms_in_files_redaction_skips():
 
 
 def test_g1_flags_a_file_outside_the_allowlist():
-    sys.path.insert(0, str(REPO / "scripts"))
-    import share_export
+    sys.path.insert(0, str(REPO))
+    from rockstar.tools import share_export
+
     dest = _tmp("share02-g1-")
     (dest / "ok.py").write_text("x\n")
     (dest / "stray.log").write_text("x\n")
@@ -179,19 +242,26 @@ def test_g3_missing_scanner_and_findings_never_pass():
     r, _ = _export(src, *_lists(), env=_scanners(missing="gitleaks"))
     assert "G3 gitleaks is not installed" in r.stderr, r.stderr
     secret = "sk-FAKE-0123456789abcdef"
-    finding = json.dumps({"DetectorName": "FakeKey", "Raw": secret,
-                          "SourceMetadata": {"Data": {"Filesystem": {"file": "ok.py", "line": 1}}}})
+    finding = json.dumps(
+        {
+            "DetectorName": "FakeKey",
+            "Raw": secret,
+            "SourceMetadata": {"Data": {"Filesystem": {"file": "ok.py", "line": 1}}},
+        }
+    )
     r, _ = _export(src, *_lists(), env=_scanners(gitleaks_exit=1, trufflehog_out=finding))
     assert "G3 gitleaks reported findings" in r.stderr and "G3 trufflehog reported findings" in r.stderr, r.stderr
     assert "FakeKey in ok.py:1" in r.stderr and secret not in r.stdout + r.stderr, "detector and place, never the key"
 
 
 def test_g6_and_a_skipped_test_block_the_commit():
-    sys.path.insert(0, str(REPO / "scripts"))
-    import share_export
+    sys.path.insert(0, str(REPO))
+    from rockstar.tools import share_export
+
     dest = _tmp("share02-g6-")
-    assert share_export.g6(dest) == ["G6 webhook_auth.py (SEC-01) is not in the export"]
-    (dest / "webhook_auth.py").write_text("x = 1\n")
+    assert share_export.g6(dest) == ["G6 rockstar/service/webhook_auth.py (SEC-01) is not in the export"]
+    (dest / "rockstar" / "service").mkdir(parents=True)
+    (dest / "rockstar/service/webhook_auth.py").write_text("x = 1\n")
     assert share_export.g6(dest) == []
     (dest / "test_s.py").write_text("import pytest\n\ndef test_a():\n    pytest.skip('no')\n")
     deny, _ = _lists()
@@ -200,10 +270,14 @@ def test_g6_and_a_skipped_test_block_the_commit():
 
 
 def test_word_entries_kept_phrases_and_squeezed_variants():
-    src = _source({"share/PUBLIC_NAMES": "Quill\tVesper\nQuill Townsend\tQuill Townsend\n",
-                   "a.md": "Quill Townsend played. Quill reviewed.\n",
-                   "b.md": "in Canada, not a name\n",
-                   "c.md": "she said zephy rine quill feather\n"})
+    src = _source(
+        {
+            "share/PUBLIC_NAMES": "Quill\tVesper\nQuill Townsend\tQuill Townsend\n",
+            "a.md": "Quill Townsend played. Quill reviewed.\n",
+            "b.md": "in Canada, not a name\n",
+            "c.md": "she said zephy rine quill feather\n",
+        }
+    )
     r, dest = _export(src, *_lists(deny="word:ada\nzephyrine quillfeather\n"))
     assert (dest / "a.md").read_text() == "Quill Townsend played. Vesper reviewed.\n", "a kept phrase survives"
     assert "G8 a.md" not in r.stderr, "the kept phrase isn't an internal name"
@@ -215,10 +289,17 @@ def test_word_entries_kept_phrases_and_squeezed_variants():
 
 
 def test_swapped_overlay_from_head_and_a_clean_commit():
-    src = _source({"code.py": f"GUEST = '{GUEST}'\n", "same.py": "x = 1\n", "webhook_auth.py": "y = 2\n",
-                   "tests/test_ok.py": "def test_ok():\n    assert True\n",
-                   "share/overlay/README.md": "# hi\n", ".gitignore": "*.log\n"},
-                  allow="*\n!share/*\n")
+    src = _source(
+        {
+            "code.py": f"GUEST = '{GUEST}'\n",
+            "same.py": "x = 1\n",
+            "rockstar/service/webhook_auth.py": "y = 2\n",
+            "tests/test_ok.py": "def test_ok():\n    assert True\n",
+            "share/overlay/README.md": "# hi\n",
+            ".gitignore": "*.log\n",
+        },
+        allow="*\n!share/*\n",
+    )
     (src / "share" / "overlay" / "debug.log").write_text("ignored, never committed\n")
     r, dest = _export(src, *_lists(redact=f"{GUEST}\tAvery Example\n"), env=_scanners(), skip_tests=False)
     assert r.returncode == 0 and "every gate passed" in r.stdout, r.stdout[-800:] + r.stderr[-800:]
@@ -230,8 +311,14 @@ def test_swapped_overlay_from_head_and_a_clean_commit():
 
 
 def test_gitignore_cannot_drop_a_gated_file():
-    src = _source({"keep.py": "x = 1\n", "webhook_auth.py": "y = 2\n",
-                   "tests/test_ok.py": "def test_ok():\n    assert True\n", ".gitignore": "*.log\n"})
+    src = _source(
+        {
+            "keep.py": "x = 1\n",
+            "rockstar/service/webhook_auth.py": "y = 2\n",
+            "tests/test_ok.py": "def test_ok():\n    assert True\n",
+            ".gitignore": "*.log\n",
+        }
+    )
     # tracked though ignored (git add -f): it is exported and gated, and the export's .gitignore would drop it
     (src / "notes.log").write_text("gated, then ignored\n")
     git = lambda *a: subprocess.run(["git", "-C", str(src), *a], check=True, capture_output=True)  # noqa: E731

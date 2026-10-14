@@ -1,0 +1,10 @@
+# HOST-01: the VPS-2's ffmpeg matches production's 8.0.1 (John, 2026-10-12: "A, match production ffmpeg 8.0.1").
+# Ubuntu 24.04 ships 6.1; the Hetzner box runs Ubuntu 26.04's 8.0.1. This is BtbN's static GPL build from the 8.0
+# release branch: 8.0.1 plus 17 release-branch fixes, the earliest build after 8.0.1 still hosted. The sha256 is the
+# one BtbN publishes in that release's checksums.sha256, checked on the Mac 2026-10-12; box-setup.sh refuses anything else.
+# Our copy is the source (BtbN deletes old builds): ~/jhc/artifacts/ffmpeg/, with BtbN's checksums file beside it.
+# A static ffmpeg gets no Ubuntu security updates and parses guests' audio: Oliver re-pins it on each 8.0.x point release
+# (and on any ffmpeg security advisory), recording the new URL, sha256 and version here.
+URL=https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2025-11-30-12-53/ffmpeg-n8.0.1-17-g27a297f186-linux64-gpl-8.0.tar.xz
+SHA256=cab6b5dd9cede8a8db8891e28f2fec2ddfd6401785328d139cbcfd23af9f691e
+VERSION=n8.0.1-17-g27a297f186

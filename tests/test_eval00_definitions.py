@@ -40,8 +40,9 @@ def test_metric_nfc():
 
 def test_metric_char_share_golden():
     assert metric.human_edit("abcd", "abXd")["char_share"] == 0.25
-    assert metric.human_edit("one two", "one  two")["char_share"] == round(1 / 8, 4), \
+    assert metric.human_edit("one two", "one  two")["char_share"] == round(1 / 8, 4), (
         "a whitespace-only change inside a line is 0 at word level but not at character level (documented)"
+    )
 
 
 def test_metric_empty_sides():
@@ -99,16 +100,23 @@ def test_bootstrap_known_effect_and_no_effect():
 
 def test_bootstrap_null_coverage_is_at_least_nominal():
     import random
+
     rng, trials, hits = random.Random(7), 200, 0
     for k in range(trials):
         base = {f"E{i}": [rng.gauss(0.3, 0.1)] for i in range(20)}
         cand = {e: [v[0] + rng.gauss(0, 0.05)] for e, v in base.items()}
-        hits += stats.paired_bootstrap(base, cand, lower_is_better=True, resamples=1000, seed=k)["verdict"] == "no detectable difference"
-    assert hits / trials >= 0.94, f"with no real effect, 'no detectable difference' {hits}/{trials} — luck would pass as a win"
+        hits += (
+            stats.paired_bootstrap(base, cand, lower_is_better=True, resamples=1000, seed=k)["verdict"]
+            == "no detectable difference"
+        )
+    assert hits / trials >= 0.94, (
+        f"with no real effect, 'no detectable difference' {hits}/{trials} — luck would pass as a win"
+    )
 
 
 def test_verdict_interval_covers_both_and_t_table():
     import random
+
     rng = random.Random(3)
     base = {f"E{i}": [rng.gauss(0.3, 0.1)] for i in range(20)}
     cand = {e: [v[0] + rng.gauss(0.01, 0.05)] for e, v in base.items()}
@@ -130,8 +138,11 @@ def test_bootstrap_under_ten_episodes_is_advisory():
 
 
 def test_bootstrap_pairs_only_shared_episodes():
-    r = stats.paired_bootstrap({"E1": [0.1], "E2": [0.2], "E3": [0.3], "E4": [0.4]},
-                               {"E2": [0.2], "E3": [0.3], "E4": [], "E9": [0.9]}, lower_is_better=True)
+    r = stats.paired_bootstrap(
+        {"E1": [0.1], "E2": [0.2], "E3": [0.3], "E4": [0.4]},
+        {"E2": [0.2], "E3": [0.3], "E4": [], "E9": [0.9]},
+        lower_is_better=True,
+    )
     assert r["n_episodes"] == 2, "only shared episodes WITH runs count"
 
 
@@ -140,16 +151,23 @@ def test_baseline_names_every_missing_field_and_refuses_leakage():
     assert len(problems) == len(baseline.REQUIRED) and all(p.startswith("missing: ") for p in problems)
     full = {k: "x" for k in baseline.REQUIRED}
     full.update(response_models=["claude-sonnet-4-6"], runs_per_episode=3)
-    full.update(prompt_sha={"title": "a"}, request_template_sha={"title": "b"},
-                anchor_episodes=["E22", "E27"], scored_episodes=["E13", "E27"])
+    full.update(
+        prompt_sha={"title": "a"},
+        request_template_sha={"title": "b"},
+        anchor_episodes=["E22", "E27"],
+        scored_episodes=["E13", "E27"],
+    )
     assert baseline.validate(full) == ["anchors scored as items (leakage): ['E27']"]
     full["scored_episodes"] = ["E13"]
     full["runs_per_episode"] = 3
     assert baseline.validate(full) == [], baseline.validate(full)
-    for bad, want in ((dict(anchor_episodes="E22", scored_episodes="E2"), "must be a list"),
-                      (dict(runs_per_episode=True), "positive integer"),
-                      (dict(runs_per_episode="three"), "positive integer"), (dict(model=""), "model must be"),
-                      (dict(scored_episodes=[]), "baseline over nothing")):
+    for bad, want in (
+        (dict(anchor_episodes="E22", scored_episodes="E2"), "must be a list"),
+        (dict(runs_per_episode=True), "positive integer"),
+        (dict(runs_per_episode="three"), "positive integer"),
+        (dict(model=""), "model must be"),
+        (dict(scored_episodes=[]), "baseline over nothing"),
+    ):
         probs = baseline.validate({**full, **bad})
         assert any(want in p for p in probs), (bad, probs)
 
@@ -165,8 +183,12 @@ def test_calibration_numbers_from_jens_review():
 
 
 def test_stats_refuse_bad_input():
-    for fn in (lambda: stats.wilson(11, 10), lambda: stats.wilson(1, 0), lambda: stats.calibration_report([], []),
-               lambda: stats.calibration_report(["y"], ["y", "n"])):
+    for fn in (
+        lambda: stats.wilson(11, 10),
+        lambda: stats.wilson(1, 0),
+        lambda: stats.calibration_report([], []),
+        lambda: stats.calibration_report(["y"], ["y", "n"]),
+    ):
         try:
             fn()
         except ValueError:

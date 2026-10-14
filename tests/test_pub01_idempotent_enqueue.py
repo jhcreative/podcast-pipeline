@@ -9,7 +9,7 @@ B (mark-read tombstone, fired once on first insert, non-fatal), and C (migration
 
 Every test runs against a THROWAWAY sqlite db under a temp dir — never the live
 /opt/rockstar-pipeline/state/jobs.db. We point db.DB_PATH at the temp file via
-the DB_PATH env override (read at import time in db.py) and importlib.reload so
+the DB_PATH env override (read at import time in rockstar/service/db.py) and importlib.reload so
 each case gets a clean, isolated DB (PQ-7: clean state, no test depends on
 another's output).
 
@@ -39,6 +39,8 @@ import threading
 import types
 from pathlib import Path
 
+import _swap  # noqa: E402 — tests/: fakes go on the package too
+
 _TMP = Path(tempfile.mkdtemp(prefix="pub01_"))
 _REAL_DB = "/opt/rockstar-pipeline/state/jobs.db"
 
@@ -55,8 +57,9 @@ def _fresh_db(name: str):
     if path.exists():
         path.unlink()
     os.environ["DB_PATH"] = str(path)
-    import db as _db
-    importlib.reload(_db)
+    _swap.pop("rockstar.service.db", None)  # whatever another suite left there: load the real one, fresh
+    from rockstar.service import db as _db
+
     assert str(_db.DB_PATH) != _REAL_DB, "test must NOT use the live DB"
     assert str(_db.DB_PATH).startswith(str(_TMP)), _db.DB_PATH
     return _db, path
@@ -79,10 +82,7 @@ def test_idempotent_enqueue_same_key():
     db.init_db()
 
     key = "19e7018dabe1d91f"  # a real offending message_id from the bug report
-    ids = [
-        db.enqueue("PUBLISH_FINALIZE", "TBD", {"trigger": "gmail"}, dedup_key=key)
-        for _ in range(5)
-    ]
+    ids = [db.enqueue("PUBLISH_FINALIZE", "TBD", {"trigger": "gmail"}, dedup_key=key) for _ in range(5)]
 
     rows = _rows(path)
     assert len(rows) == 1, f"expected exactly 1 row, got {len(rows)}"
@@ -112,16 +112,16 @@ def test_concurrency_db_level_guarantee():
         # insertion, not app-level check-then-insert.
         try:
             barrier.wait(timeout=5)
-            results[tag] = db.enqueue(
-                "PUBLISH_FINALIZE", "TBD", {"trigger": "gmail"}, dedup_key=key
-            )
+            results[tag] = db.enqueue("PUBLISH_FINALIZE", "TBD", {"trigger": "gmail"}, dedup_key=key)
         except Exception as e:  # capture so we can assert on it, not crash silently
             results[tag] = e
 
     t1 = threading.Thread(target=worker, args=("a",))
     t2 = threading.Thread(target=worker, args=("b",))
-    t1.start(); t2.start()
-    t1.join(); t2.join()
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
 
     for tag, r in results.items():
         assert not isinstance(r, Exception), f"thread {tag} raised: {r!r}"
@@ -181,13 +181,8 @@ def _build_old_schema_db(path: Path) -> None:
             WHERE status IN ('pending','running');
         """
     )
-    con.execute(
-        "INSERT INTO jobs (job_type, episode_id, status) VALUES ('ROUND_1','E25','done')"
-    )
-    con.execute(
-        "INSERT INTO jobs (job_type, episode_id, status) VALUES "
-        "('PUBLISH_FINALIZE','E26','failed')"
-    )
+    con.execute("INSERT INTO jobs (job_type, episode_id, status) VALUES ('ROUND_1','E25','done')")
+    con.execute("INSERT INTO jobs (job_type, episode_id, status) VALUES ('PUBLISH_FINALIZE','E26','failed')")
     con.commit()
     con.close()
 
@@ -215,12 +210,7 @@ def test_migration_old_schema():
     assert all(r["dedup_key"] is None for r in post), "old rows must have NULL dedup_key"
 
     # idx_jobs_dedup index present
-    idx = {
-        r[0]
-        for r in sqlite3.connect(str(path)).execute(
-            "SELECT name FROM sqlite_master WHERE type='index'"
-        )
-    }
+    idx = {r[0] for r in sqlite3.connect(str(path)).execute("SELECT name FROM sqlite_master WHERE type='index'")}
     assert "idx_jobs_dedup" in idx, f"dedup index missing; have {idx}"
 
     # old rows are EXEMPT from the constraint: two NULL-key inserts both succeed
@@ -242,10 +232,7 @@ def test_migration_old_schema():
     cols2 = {r[1] for r in sqlite3.connect(str(path)).execute("PRAGMA table_info(jobs)")}
     # ALTER must not have run twice (would error); column set unchanged.
     assert cols2 == cols
-    print(
-        f"  7 migration: history intact (2 rows), dedup_key+index added, "
-        f"old rows exempt, re-run no-op ✓"
-    )
+    print("  7 migration: history intact (2 rows), dedup_key+index added, old rows exempt, re-run no-op ✓")
 
 
 # ── 5 / 6 — criterion B: mark-read fires once on first insert, non-fatal ───────
@@ -275,8 +262,12 @@ def _load_webhook_with_stubs(mark_read_impl):
     saved = {
         name: sys.modules.get(name)
         for name in (
-            "fastapi", "gmail_client", "drive_changes", "drive_client",
-            "publisher_email", "webhook_service",
+            "fastapi",
+            "gmail_client",
+            "drive_changes",
+            "drive_client",
+            "publisher_email",
+            "webhook_service",
         )
     }
 
@@ -309,12 +300,9 @@ def _load_webhook_with_stubs(mark_read_impl):
     msg_id = "19ed1689f95595b1"
     gc.MSG_ID = msg_id  # exposed so the test knows the key in play
     gc.parse_pubsub_notification = lambda body: {"emailAddress": "me", "historyId": "42"}
-    gc.list_unread_messages = lambda query, max_results: [
-        {"id": msg_id, "threadId": "t1"}
-    ]
+    gc.list_unread_messages = lambda query, max_results: [{"id": msg_id, "threadId": "t1"}]
     gc.get_message = lambda mid: {"id": mid}
-    _headers = {"subject": "Your Episode is Live | X", "from": "notices@legacy-publisher.example.test",
-                "in-reply-to": ""}
+    _headers = {"subject": "Your Episode is Live | X", "from": "notices@legacy-publisher.example.test", "in-reply-to": ""}
     gc.get_header = lambda msg, name: _headers.get(name, "")
     gc.mark_read = mark_read_impl
 
@@ -329,12 +317,16 @@ def _load_webhook_with_stubs(mark_read_impl):
     drive_changes = types.ModuleType("drive_changes")
     drive_client = types.ModuleType("drive_client")
 
-    sys.modules.update(
-        fastapi=fastapi, gmail_client=gc, publisher_email=pe,
-        drive_changes=drive_changes, drive_client=drive_client,
+    _swap.update(
+        fastapi=fastapi,
+        gmail_client=gc,
+        publisher_email=pe,
+        drive_changes=drive_changes,
+        drive_client=drive_client,
     )
-    sys.modules.pop("webhook_service", None)
-    import webhook_service  # noqa: E402 — imported under the stubs above
+    _swap.pop("rockstar.service.webhook_service", None)
+    from rockstar.service import webhook_service  # noqa: E402 — imported under the stubs above
+
     importlib.reload(webhook_service)
     return webhook_service, gc, saved, msg_id
 
@@ -342,9 +334,9 @@ def _load_webhook_with_stubs(mark_read_impl):
 def _restore_modules(saved: dict) -> None:
     for name, mod in saved.items():
         if mod is None:
-            sys.modules.pop(name, None)
+            _swap.pop(name, None)
         else:
-            sys.modules[name] = mod
+            _swap.put(name, mod)
 
 
 class _CountingHandler(logging.Handler):
@@ -392,15 +384,11 @@ def test_markread_fires_once_and_nonfatal():
         resp = asyncio.run(webhook_service.gmail_webhook(_FakeRequest(body)))
         assert resp.status_code == 200
         assert len(_rows(path)) == 1, "redelivery must not insert a second job"
-        assert calls == [msg_id], (
-            f"mark_read must NOT fire on redelivery (inserted=False), got {calls}"
-        )
+        assert calls == [msg_id], f"mark_read must NOT fire on redelivery (inserted=False), got {calls}"
 
         # ---- Phase 3: a NEW message whose mark_read RAISES → non-fatal ----
         new_id = "19edd73ebafa7312"
-        gc.list_unread_messages = lambda query, max_results: [
-            {"id": new_id, "threadId": "t2"}
-        ]
+        gc.list_unread_messages = lambda query, max_results: [{"id": new_id, "threadId": "t2"}]
         gc.get_message = lambda mid: {"id": mid}
         raise_now["on"] = True
         log.records.clear()
@@ -410,8 +398,7 @@ def test_markread_fires_once_and_nonfatal():
         new_rows = _rows(path, f"WHERE dedup_key = '{new_id}'")
         assert len(new_rows) == 1, "job must still enqueue even when mark_read raises"
         # ...and the failure was logged at WARNING (criterion 6 / D).
-        warnings = [r for r in log.records if r.levelno == logging.WARNING
-                    and "mark_read failed" in r.getMessage()]
+        warnings = [r for r in log.records if r.levelno == logging.WARNING and "mark_read failed" in r.getMessage()]
         assert warnings, "mark_read failure must be logged at WARNING"
         assert new_id in warnings[0].getMessage(), warnings[0].getMessage()
     finally:
@@ -450,10 +437,7 @@ def main() -> int:
             failed += 1
             print(f"  ERROR {t.__name__}: {type(e).__name__}: {e}")
     total = len(tests)
-    print(
-        f"\n{total - failed - skipped} passed, {failed} failed, {skipped} skipped "
-        f"(of {total})"
-    )
+    print(f"\n{total - failed - skipped} passed, {failed} failed, {skipped} skipped (of {total})")
     return 1 if failed else 0
 
 

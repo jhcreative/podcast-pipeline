@@ -21,6 +21,11 @@ from pathlib import Path
 
 import pytest
 
+# CLIP-01c: Round 1 and Phase 2 refuse to run without the box's measured clip limit. Every file gets the new box's
+# (CLIP-01b, 2026-10-12) unless it sets its own; tests/test_clip01c_ceiling.py proves the refusal without it.
+os.environ.setdefault("BOX_LIMITS_FILE", str(Path(__file__).parent / "fixtures" / "box-limits.env"))
+os.environ.setdefault("BOX_LIMITS_TEST", "1")  # BOX_LIMITS_FILE counts only with this set
+
 _DENYLIST = (os.environ.get("DENYLIST_PATH"), Path.home() / "jhc/secrets/rockstar-podcast/share-denylist.txt")
 
 
@@ -37,15 +42,23 @@ class ScriptFile(pytest.File):
         if "pytestmark = pytest.mark.live" in text:
             item.add_marker(pytest.mark.live)
         if "pytestmark = pytest.mark.private" in text and not any(p and Path(p).is_file() for p in _DENYLIST):
-            item.add_marker(pytest.mark.skip(reason="needs the private denylist (DENYLIST_PATH); the export runs it "
-                                                    "before every commit"))
+            item.add_marker(
+                pytest.mark.skip(
+                    reason="needs the private denylist (DENYLIST_PATH); the export runs it before every commit"
+                )
+            )
         yield item
 
 
 class ScriptItem(pytest.Item):
     def runtest(self):
-        proc = subprocess.run([sys.executable, "-B", str(self.path)], capture_output=True, text=True,
-                              cwd=self.path.parent.parent, timeout=900)
+        proc = subprocess.run(
+            [sys.executable, "-B", str(self.path)],
+            capture_output=True,
+            text=True,
+            cwd=self.path.parent.parent,
+            timeout=900,
+        )
         self._output = proc.stdout + proc.stderr
         if proc.returncode != 0:
             raise ScriptFailed(proc.returncode)

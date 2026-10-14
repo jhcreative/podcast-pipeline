@@ -47,7 +47,7 @@ def _levenshtein(a: list, b: list) -> int:
     end = 0
     while end < len(a) - start and end < len(b) - start and a[-1 - end] == b[-1 - end]:
         end += 1
-    a, b = a[start:len(a) - end], b[start:len(b) - end]
+    a, b = a[start : len(a) - end], b[start : len(b) - end]
     if len(a) < len(b):
         a, b = b, a
     prev = list(range(len(b) + 1))

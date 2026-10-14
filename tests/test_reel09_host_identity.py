@@ -8,22 +8,32 @@ Run: python3 test_reel09_host_identity.py   (plain asserts, no pytest needed)
   AC3 misspellings canonicalize, hyphenated included     → test_canonicalize_*
   AC4 no module keeps its own host rule                  → test_one_rule_everywhere
 """
+
 import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent  # the repo root: tests/ is one level down
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "quote_cards"))
+sys.path.insert(0, str(ROOT))
 
-import content_gates  # noqa: E402
-import episode_files  # noqa: E402
-import host_identity  # noqa: E402
-import summary_norm  # noqa: E402
+from rockstar.content import episode_files  # noqa: E402
+from rockstar.gates import (
+    content_gates,  # noqa: E402
+    host_identity,  # noqa: E402
+    summary_norm,  # noqa: E402
+)
 
 HOST = "Heather Reilly Hiemstra"
-HOST_SPELLINGS = ["Heather Reilly Hiemstra", "Heather Reilly-Hemstra", "Heather Riley-Hemstra",
-                  "Heather Riley Heemstra", "Heather Riley", "Heather", "heather reilly hiemstra"]
+HOST_SPELLINGS = [
+    "Heather Reilly Hiemstra",
+    "Heather Reilly-Hemstra",
+    "Heather Riley-Hemstra",
+    "Heather Riley Heemstra",
+    "Heather Riley",
+    "Heather",
+    "heather reilly hiemstra",
+]
 OTHER_HEATHERS = ["Heather Kestrel-Morrowvane", "Heather Lockwoodby", "Dr. Heather Smith"]
 
 
@@ -58,7 +68,8 @@ def test_e27_guest_heather_gets_her_image():
 
 
 def test_gates_and_cards_agree():
-    import cover_image
+    from rockstar.cards import cover_image
+
     for s in HOST_SPELLINGS + OTHER_HEATHERS:
         assert content_gates._is_host_speaker(s) == host_identity.is_host(s), s
         assert cover_image.is_host(s) == host_identity.is_host(s), s
@@ -69,7 +80,7 @@ def test_gates_and_cards_agree():
 def test_one_rule_everywhere():
     """AC4: no module keeps its own host rule."""
     hits = []
-    for p in list(ROOT.glob("*.py")) + list(ROOT.glob("jobs/*.py")) + list(ROOT.glob("quote_cards/*.py")):
+    for p in ROOT.glob("rockstar/**/*.py"):
         if p.name.startswith("test_") or p.name == "host_identity.py":
             continue
         src = p.read_text(encoding="utf-8")

@@ -14,10 +14,12 @@ import tempfile
 import types
 from pathlib import Path
 
+import _swap  # noqa: E402 — tests/: fakes go on the package too
+
 REPO = Path(__file__).resolve().parent.parent  # the repo root: tests/ is one level down
 sys.path.insert(0, str(REPO))
 
-import episode_files as ef  # noqa: E402
+from rockstar.content import episode_files as ef  # noqa: E402
 
 
 def _f(name, fid=None):
@@ -66,12 +68,20 @@ def _pf():
     if "anthropic" not in sys.modules:
         a = types.ModuleType("anthropic")
         a.Anthropic = type("Anthropic", (), {"__init__": lambda self, *a, **k: None})
-        sys.modules["anthropic"] = a
-    for name in ("calendar_client", "drive_client", "gmail_client", "publisher_email", "db", "blog_publish",
-                 "workspace"):
-        sys.modules[name] = types.ModuleType(name)
-    sys.modules.pop("jobs.publish_finalize", None)
-    import jobs.publish_finalize as pf
+        _swap.put("anthropic", a)
+    for name in (
+        "rockstar.clients.calendar_client",
+        "rockstar.clients.drive_client",
+        "rockstar.clients.gmail_client",
+        "rockstar.clients.publisher_email",
+        "rockstar.service.db",
+        "rockstar.content.blog_publish",
+        "rockstar.ops.workspace",
+    ):
+        _swap.put(name, types.ModuleType(name))
+    _swap.pop("rockstar.jobs.publish_finalize", None)
+    from rockstar.jobs import publish_finalize as pf
+
     return pf
 
 
@@ -81,16 +91,27 @@ def test_phase2_writes_background_paths_and_stops_on_a_mismatch():
     reels = [_f("E13-reel-john.jpg", "j"), _f("E13-reel-heather.jpg", "h")]
     locals_ = {"j": tmp / "E13-reel-john.jpg", "h": tmp / "E13-reel-heather.jpg"}
     qp = tmp / "quotes.json"
-    qp.write_text(json.dumps({"quotes": [{"id": "q1", "speaker": "John Hiemstra"},
-                                         {"id": "q2", "speaker": "Heather Reilly Hiemstra"},
-                                         {"id": "q3", "speaker": "Heather Reilly Hiemstra", "reel_candidate": False}]}))
+    qp.write_text(
+        json.dumps(
+            {
+                "quotes": [
+                    {"id": "q1", "speaker": "John Hiemstra"},
+                    {"id": "q2", "speaker": "Heather Reilly Hiemstra"},
+                    {"id": "q3", "speaker": "Heather Reilly Hiemstra", "reel_candidate": False},
+                ]
+            }
+        )
+    )
     pf._assign_reel_backgrounds(qp, reels, locals_, "E13")
     q = {x["id"]: x for x in json.loads(qp.read_text())["quotes"]}
     assert q["q1"]["background_path"].endswith("E13-reel-john.jpg")
     assert q["q2"]["background_path"].endswith("E13-reel-heather.jpg")
     assert "background_path" not in q["q3"]  # not a reel: untouched
-    qp.write_text(json.dumps({"quotes": [{"id": "q1", "speaker": "Guest Two"}, {"id": "q2", "speaker": "John Hiemstra"}]}))
-    from content_gates import GateFailure
+    qp.write_text(
+        json.dumps({"quotes": [{"id": "q1", "speaker": "Guest Two"}, {"id": "q2", "speaker": "John Hiemstra"}]})
+    )
+    from rockstar.gates.content_gates import GateFailure
+
     try:
         pf._assign_reel_backgrounds(qp, [_f("E13-reel-john.jpg", "j")], locals_, "E13")
     except GateFailure as e:
@@ -103,23 +124,30 @@ def test_heather_as_guest_skips_thank_you():
     pf = _pf()
     assert pf._guest_is_host("Heather Reilly Hiemstra") and pf._guest_is_host("Heather")
     assert not pf._guest_is_host("Heather Smith") and not pf._guest_is_host("Linnea Ashgrovenly")
-    src = (REPO / "jobs" / "publish_finalize.py").read_text()
+    src = (REPO / "rockstar" / "jobs" / "publish_finalize.py").read_text()
     skip = src.index("if _guest_is_host(guest_name):")
-    assert skip < src.index("ty = thank_you.build_draft(") < src.index("# ── Step 14"), "thank-you must sit inside the skip"
+    assert skip < src.index("ty = thank_you.build_draft(") < src.index("# ── Step 14"), (
+        "thank-you must sit inside the skip"
+    )
 
 
 def test_render_reel_honours_background_path():
-    js = (REPO / "scripts" / "render_reel.js").read_text()
-    assert "quote.background_path\n      || (quote.speaker_role === 'host' ? hostBackgroundPath : args.background)" in js
+    js = (REPO / "reels" / "render_reel.js").read_text()
+    assert (
+        "quote.background_path\n      || (quote.speaker_role === 'host' ? hostBackgroundPath : args.background)" in js
+    )
 
 
 def test_gate_refusal_alerts_once_and_is_permanent():
     pf = _pf()
-    from content_gates import GateFailure
+    from rockstar.gates.content_gates import GateFailure
+
     sent = []
     pf._alert = lambda subject, body: sent.append((subject, body))
+
     def boom(job_id, payload):
         raise GateFailure("E13: reel backgrounds don't match the speakers. q2: no reel image for John")
+
     pf._run_pipeline = boom
     try:
         pf.run(1, "x", {"trigger": "visuals", "episode_number": 13})

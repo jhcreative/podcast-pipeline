@@ -34,7 +34,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent  # the repo root: tests/ is one level down
 sys.path.insert(0, str(REPO))
 
-import webhook_auth as wa  # noqa: E402
+from rockstar.service import webhook_auth as wa  # noqa: E402
 
 AUD = "https://pm.example.test/webhook/gmail"
 SA = "gmail-push@rockstar-pipeline.iam.gserviceaccount.example"
@@ -49,14 +49,23 @@ def _keypair():
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
     from cryptography.x509.oid import NameOID
+
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "sec01-test")])
     now = datetime.datetime.now(datetime.timezone.utc)
-    cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key())
-            .serial_number(1).not_valid_before(now - datetime.timedelta(days=1))
-            .not_valid_after(now + datetime.timedelta(days=1)).sign(key, hashes.SHA256()))
-    pem_key = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
-                                serialization.NoEncryption()).decode()
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(1)
+        .not_valid_before(now - datetime.timedelta(days=1))
+        .not_valid_after(now + datetime.timedelta(days=1))
+        .sign(key, hashes.SHA256())
+    )
+    pem_key = key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+    ).decode()
     return pem_key, cert.public_bytes(serialization.Encoding.PEM).decode()
 
 
@@ -76,9 +85,17 @@ def _certs_request(url, method="GET", **kw):
 
 def _token(key=KEY, **over):
     from google.auth import crypt, jwt
+
     now = int(time.time())
-    claims = {"iss": "https://accounts.google.com", "aud": AUD, "email": SA, "email_verified": True,
-              "iat": now, "exp": now + 3600, "sub": "1"}
+    claims = {
+        "iss": "https://accounts.google.com",
+        "aud": AUD,
+        "email": SA,
+        "email_verified": True,
+        "iat": now,
+        "exp": now + 3600,
+        "sub": "1",
+    }
     claims.update(over)
     claims = {k: v for k, v in claims.items() if v is not None}
     return jwt.encode(crypt.RSASigner.from_string(key, key_id="k1"), claims).decode()
@@ -149,11 +166,13 @@ def test_secret_matches():
 
 def test_no_plain_token_comparison():
     import re
-    src = (REPO / "webhook_service.py").read_text()
-    code = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("#"))
-    assert not re.search(r"(token|secret|SECRET)\w*\s*!=|!=\s*_?\w*(token|secret|SECRET)", code), \
+
+    src = (REPO / "rockstar/service/webhook_service.py").read_text()
+    code = "\n".join(line for line in src.splitlines() if not line.lstrip().startswith("#"))
+    assert not re.search(r"(token|secret|SECRET)\w*\s*!=|!=\s*_?\w*(token|secret|SECRET)", code), (
         "a shared secret compared with != (timing leak)"
-    assert "compare_digest" in (REPO / "webhook_auth.py").read_text()
+    )
+    assert "compare_digest" in (REPO / "rockstar/service/webhook_auth.py").read_text()
 
 
 # ── the real webhook_service, under test_pub01's stubs ────────────────────────
@@ -168,6 +187,7 @@ class _HTTPException(Exception):
 def _service(env: dict):
     """webhook_service imported with `env` in place (it reads its settings at import)."""
     import test_pub01_idempotent_enqueue as p1
+
     old = {k: os.environ.get(k) for k in list(wa.REQUIRED_SETTINGS) + ["PIPELINE_DEV"]}
     for k in old:
         os.environ.pop(k, None)
@@ -185,8 +205,12 @@ def _service(env: dict):
     return ws, saved, p1
 
 
-FULL = {"WEBHOOK_SHARED_SECRET": "drive-s3cret", "GMAIL_PUBSUB_SUBSCRIPTION": "gmail-push-sub",
-        "PUBSUB_PUSH_AUDIENCE": AUD, "PUBSUB_PUSH_SA_EMAIL": SA}
+FULL = {
+    "WEBHOOK_SHARED_SECRET": "drive-s3cret",
+    "GMAIL_PUBSUB_SUBSCRIPTION": "gmail-push-sub",
+    "PUBSUB_PUSH_AUDIENCE": AUD,
+    "PUBSUB_PUSH_SA_EMAIL": SA,
+}
 
 
 def test_startup_refuses_with_a_setting_missing():
@@ -213,7 +237,10 @@ def test_status_endpoint_404_through_proxy_200_on_box():
         db, _ = p1._fresh_db("sec01.db")
         db.init_db()
         ws.db = db
-        req = lambda host, headers: types.SimpleNamespace(client=types.SimpleNamespace(host=host), headers=headers)
+
+        def req(host, headers):
+            return types.SimpleNamespace(client=types.SimpleNamespace(host=host), headers=headers)
+
         through_caddy = req("127.0.0.1", {"X-Forwarded-For": "198.51.100.4", "Host": "pipeline.example.test"})
         try:
             ws.status(through_caddy)
@@ -253,6 +280,7 @@ def _any_certs(url, method="GET", **kw):
 def _with_google_transport(fn):
     """Run fn with google-auth's transport serving the throwaway cert, as the endpoint calls it (no args)."""
     import google.auth.transport.requests as greq
+
     real = greq.Request
     greq.Request = lambda *a, **k: _any_certs
     try:
@@ -284,8 +312,9 @@ def test_gmail_endpoint_accepts_a_good_push_end_to_end():
         seen = {}
         _with_google_transport(lambda: seen.setdefault("timeout", None))
         import google.auth.transport.requests as greq
+
         real = greq.Request
-        greq.Request = lambda *a, **k: (lambda url, method="GET", **kw: seen.update(kw) or _any_certs(url))
+        greq.Request = lambda *a, **k: lambda url, method="GET", **kw: seen.update(kw) or _any_certs(url)
         try:
             asyncio.run(ws.gmail_webhook(p1._FakeRequest(GOOD_BODY, {"authorization": f"Bearer {_token()}"})))
         finally:
@@ -300,8 +329,10 @@ def test_gmail_endpoint_503_when_google_certs_unreachable():
 
     def down(url, method="GET", **kw):
         raise gexc.TransportError("connection refused")
+
     ws, saved, p1 = _service(FULL)
     import google.auth.transport.requests as greq
+
     real = greq.Request
     greq.Request = lambda *a, **k: down
     try:
@@ -342,6 +373,8 @@ def test_drive_endpoint_token():
 def test_pipeline_dev_is_never_set_on_the_box():
     hits = [str(p) for p in (REPO / "systemd").rglob("*") if p.is_file() and "PIPELINE_DEV" in p.read_text()]
     assert not hits, f"PIPELINE_DEV in a systemd unit: {hits}"
+    # the remodel's unit switch writes drop-ins: it must never set it either (Orly, the remodel's cold review)
+    assert "PIPELINE_DEV" not in (REPO / "scripts" / "remodel-units.sh").read_text()
     assert "PIPELINE_DEV" not in (REPO / ".env.example").read_text().replace("# PIPELINE_DEV", "")
 
 
@@ -358,6 +391,7 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             failed += 1
             import traceback
+
             print(f"  ERROR {t.__name__}: {type(e).__name__}: {e}")
             traceback.print_exc()
     print(f"\n{len(tests) - failed} passed, {failed} failed (of {len(tests)})")

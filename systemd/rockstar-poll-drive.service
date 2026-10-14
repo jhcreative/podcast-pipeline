@@ -8,6 +8,6 @@ User=rockstar
 Group=rockstar
 WorkingDirectory=/opt/rockstar-pipeline
 EnvironmentFile=/opt/rockstar-pipeline/.env
-ExecStart=/opt/rockstar-pipeline/venv/bin/python poll_drive_changes.py
+ExecStart=/opt/rockstar-pipeline/venv/bin/python -m rockstar.service.poll_drive_changes
 StandardOutput=journal
 StandardError=journal

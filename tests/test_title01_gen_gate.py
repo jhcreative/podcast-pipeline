@@ -13,7 +13,7 @@ Covers TITLE-01 acceptance criteria:
 
 Discipline (same as PUB-01):
   - anthropic / fastapi / googleapiclient / calendar_client / drive_client pull
-    in heavy deps NOT installed locally. content_gates.py is PURE — tested
+    in heavy deps NOT installed locally. rockstar/gates/content_gates.py is PURE — tested
     directly. For compose_title we stub the `anthropic` SDK module and the
     client; for round_1 we stub the I/O-boundary modules in sys.modules and run
     Bill's REAL _run_pipeline, so the gate ordering (gate BEFORE counter/schedule
@@ -31,6 +31,8 @@ import tempfile
 import types
 from pathlib import Path
 
+import _swap  # noqa: E402 — tests/: fakes go on the package too
+
 WORKTREE = Path(__file__).resolve().parent.parent  # the repo root: tests/ is one level down
 sys.path.insert(0, str(WORKTREE))
 _REAL_STATE = "/opt/rockstar-pipeline"
@@ -44,7 +46,7 @@ def _install_anthropic_stub():
     class — in BOTH environments (server venv where the SDK is installed, and a
     bare interpreter where it is not).
 
-    Why this matters: anthropic_client.py:65 has a MODULE-LEVEL annotation
+    Why this matters: rockstar/clients/anthropic_client.py:65 has a MODULE-LEVEL annotation
     `_client: anthropic.Anthropic | None`, evaluated at import. `X | None`
     requires X to support __or__ — a real class does; a lambda does NOT (that was
     Toby's 4× `TypeError: unsupported operand for |`). We never call the real
@@ -58,8 +60,7 @@ def _install_anthropic_stub():
         # `Anthropic` is already a class; assert the one property we depend on so
         # a future SDK change that broke it would fail loudly here, not mid-test.
         assert isinstance(getattr(real, "Anthropic", None), type), (
-            "real anthropic.Anthropic is not a class — annotation in "
-            "anthropic_client.py:65 would break"
+            "real anthropic.Anthropic is not a class — annotation in rockstar/clients/anthropic_client.py:65 would break"
         )
         return
     anthropic = types.ModuleType("anthropic")
@@ -70,7 +71,7 @@ def _install_anthropic_stub():
 
     anthropic.Anthropic = Anthropic
     assert isinstance(anthropic.Anthropic, type)  # the invariant, made explicit
-    sys.modules["anthropic"] = anthropic
+    _swap.put("anthropic", anthropic)
 
 
 # ── criterion 1 — preamble resilience in title parsing/generation ──────────────
@@ -94,7 +95,8 @@ BARE_BRACE_RESPONSE = (
 
 def test_parse_title_preamble():
     _install_anthropic_stub()
-    import anthropic_client
+    from rockstar.clients import anthropic_client
+
     importlib.reload(anthropic_client)
 
     # E29 fenced-with-preamble → fence strip skips the note, parses clean.
@@ -137,7 +139,8 @@ class _FakeClient:
 def _compose_title_with_response(text: str):
     """Drive the REAL compose_title with a stubbed client returning `text`."""
     _install_anthropic_stub()
-    import anthropic_client
+    from rockstar.clients import anthropic_client
+
     importlib.reload(anthropic_client)
     # Stub the two boundaries compose_title touches: the API client and the
     # prompt loader (no prompts dir in the test env). Everything else — fence
@@ -158,7 +161,7 @@ def test_compose_title_e29_preamble():
 
 def test_compose_title_empty_raises():
     # Empty / fields-missing responses must RAISE — never default to "TBD".
-    for bad in ('{}', '{"hook": "", "topic": "x"}', "garbage not json"):
+    for bad in ("{}", '{"hook": "", "topic": "x"}', "garbage not json"):
         try:
             _compose_title_with_response(bad)
         except (RuntimeError, json.JSONDecodeError):
@@ -172,11 +175,21 @@ def test_compose_title_empty_raises():
 
 
 def test_gate_blocks_placeholders():
-    import content_gates
+    from rockstar.gates import content_gates
+
     placeholders = [
-        "TBD", "tbd", " TBD ", "", "   ",
-        "Pending", "pending review", "PLACEHOLDER",
-        "Untitled", "untitled episode", "tk", "TK come back",
+        "TBD",
+        "tbd",
+        " TBD ",
+        "",
+        "   ",
+        "Pending",
+        "pending review",
+        "PLACEHOLDER",
+        "Untitled",
+        "untitled episode",
+        "tk",
+        "TK come back",
         "Don't Wait | TBD",  # placeholder anywhere in the string
     ]
     for t in placeholders:
@@ -190,7 +203,8 @@ def test_gate_blocks_placeholders():
 
 
 def test_gate_no_false_positives():
-    import content_gates
+    from rockstar.gates import content_gates
+
     # Real titles AND tricky words that *contain* a placeholder stem but are NOT
     # placeholders — the \b word-boundary in _PLACEHOLDER_TITLE_RE must let these
     # through. This is the regression that proves the boundary actually works.
@@ -215,12 +229,12 @@ def test_gate_no_false_positives():
 
     # And confirm the boundary really is the mechanism: 'pending' as a standalone
     # word is rejected, but embedded in 'Pendulum'/'Attkisson' it is not.
-    import content_gates as cg
+    from rockstar.gates import content_gates as cg
+
     assert cg._PLACEHOLDER_TITLE_RE.search("pending") is not None
     assert cg._PLACEHOLDER_TITLE_RE.search("Pendulum") is None
     assert cg._PLACEHOLDER_TITLE_RE.search("Attkisson") is None
-    print(f"  2 gate passes {len(passing)} real titles incl. words containing stems "
-          "(Pendulum/Attkisson/Tkachenko) ✓")
+    print(f"  2 gate passes {len(passing)} real titles incl. words containing stems (Pendulum/Attkisson/Tkachenko) ✓")
 
 
 # ── criterion 4 — shared-gate parity (one definition, two callers) ─────────────
@@ -231,7 +245,7 @@ def test_shared_gate_parity():
     directly) and publish_finalize's wrapper. publish_finalize imports its own
     deps; stub the heavy ones so we can import its wrapper, then prove the wrapper
     is a thin translation of the shared gate (GateFailure → PermanentFailure)."""
-    import content_gates
+    from rockstar.gates import content_gates
 
     # round_1 path uses content_gates.assert_real_title directly.
     round1_raised = False
@@ -256,8 +270,10 @@ def test_shared_gate_parity():
     # A real title passes BOTH callers with no raise.
     content_gates.assert_real_title("Real Hook | Real Topic", "E99")
     pf._assert_real_title("Real Hook | Real Topic", "E99")
-    print("  4 shared-gate parity: TBD rejected by BOTH round_1 & publish_finalize "
-          "(GateFailure→PermanentFailure); real title passes both ✓")
+    print(
+        "  4 shared-gate parity: TBD rejected by BOTH round_1 & publish_finalize "
+        "(GateFailure→PermanentFailure); real title passes both ✓"
+    )
 
 
 def _import_publish_finalize_with_stubs():
@@ -265,15 +281,22 @@ def _import_publish_finalize_with_stubs():
     Only the wrapper + shared-gate delegation is exercised; nothing here calls
     Drive/calendar/anthropic."""
     _install_anthropic_stub()
-    for name in ("calendar_client", "drive_client", "gmail_client",
-                 "publisher_email", "db"):
+    for name in (
+        "rockstar.clients.calendar_client",
+        "rockstar.clients.drive_client",
+        "rockstar.clients.gmail_client",
+        "rockstar.clients.publisher_email",
+        "rockstar.service.db",
+    ):
         if name not in sys.modules:
-            sys.modules[name] = types.ModuleType(name)
-    sys.modules.pop("jobs.publish_finalize", None)
-    import jobs.publish_finalize as pf
+            _swap.put(name, types.ModuleType(name))
+    _swap.pop("rockstar.jobs.publish_finalize", None)
+    from rockstar.jobs import publish_finalize as pf
+
     importlib.reload(pf)
     # publish_finalize must import the SAME content_gates module (one definition).
-    import content_gates
+    from rockstar.gates import content_gates
+
     assert pf.content_gates is content_gates, "publish_finalize uses a different gate module!"
     return pf
 
@@ -284,12 +307,17 @@ def _import_publish_finalize_with_stubs():
 def _fresh_state() -> Path:
     """A throwaway STATE_DIR seeded with a counter + empty schedule."""
     d = Path(tempfile.mkdtemp(prefix="title01_state_"))
-    (d / "episode_counter.json").write_text(json.dumps({
-        "next_episode_number": 30,
-        "current_season": 2,
-        "next_season_episode": 5,
-        "updated_at": "2026-06-23T00:00:00Z",
-    }), encoding="utf-8")
+    (d / "episode_counter.json").write_text(
+        json.dumps(
+            {
+                "next_episode_number": 30,
+                "current_season": 2,
+                "next_season_episode": 5,
+                "updated_at": "2026-06-23T00:00:00Z",
+            }
+        ),
+        encoding="utf-8",
+    )
     (d / "publication_schedule.json").write_text(
         json.dumps({"episodes": [], "updated_at": "2026-06-23T00:00:00Z"}),
         encoding="utf-8",
@@ -317,8 +345,7 @@ def _load_round1_with_stubs(state_dir: Path, title_response: str, *, seed_schedu
     os.environ["EDITORIAL_CALENDAR_EVENT"] = "on"
 
     if seed_schedule is not None:
-        (state_dir / "publication_schedule.json").write_text(
-            json.dumps(seed_schedule), encoding="utf-8")
+        (state_dir / "publication_schedule.json").write_text(json.dumps(seed_schedule), encoding="utf-8")
 
     # ── drive_client stub: an inbox with one E30 audio file, no existing folder ──
     drive = types.ModuleType("drive_client")
@@ -340,8 +367,7 @@ def _load_round1_with_stubs(state_dir: Path, title_response: str, *, seed_schedu
     # ── anthropic_client stub: skip transcription/brand-team/summary, control title ──
     ac = types.ModuleType("anthropic_client")
     # `heading` is required at Phase 1 since BLOG-02 F-1 (content_gates.assert_quote_headings).
-    ac.run_brand_team_chain = lambda **k: [{"speaker": "Guest", "quote_text": "q",
-                                            "heading": "A Real Heading"}]
+    ac.run_brand_team_chain = lambda **k: [{"speaker": "Guest", "quote_text": "q", "heading": "A Real Heading"}]
     # A summary shaped like a real one: since R1-02, Round 1 normalizes it and proves it with the blog
     # builder's own parser before anything irreversible.
     ac.compose_apple_summary = lambda **k: (
@@ -351,7 +377,8 @@ def _load_round1_with_stubs(state_dir: Path, title_response: str, *, seed_schedu
 
     # ── guest_form stub (BIO-01): no network in tests; a miss is the documented no-form path ──
     gf = types.ModuleType("guest_form")
-    gf.lookup = lambda segments: (None, "test: no form")
+    gf.lookup = lambda segments, used=None: (None, "test: no form")
+    gf.used_by_other_episodes = lambda schedule, episode_code: set()
     ac.compose_title = lambda **k: title_response
 
     # ── db stub (round_1 imports it; not used on the title path) ──
@@ -363,19 +390,47 @@ def _load_round1_with_stubs(state_dir: Path, title_response: str, *, seed_schedu
     # (that was Toby's 3× `drive_client has no attribute 'list_audio_in_inbox'`).
     # Keep this list in sync with round_1's drive_client.* call sites.
     _required_drive = (
-        "list_audio_in_inbox", "list_folder", "find_episode_folder",
-        "has_pipeline_done_marker", "create_folder", "download_file",
-        "move_file", "upload_file",
+        "list_audio_in_inbox",
+        "list_folder",
+        "find_episode_folder",
+        "has_pipeline_done_marker",
+        "create_folder",
+        "download_file",
+        "move_file",
+        "upload_file",
     )
     missing = [n for n in _required_drive if not hasattr(drive, n)]
     assert not missing, f"drive_client stub is missing: {missing}"
 
-    for name, mod in (("drive_client", drive), ("calendar_client", cal),
-                      ("anthropic_client", ac), ("db", db_stub), ("guest_form", gf)):
-        sys.modules[name] = mod
+    # QUOTE-01's verbatim gate, passed through: these tests are about titles and intake, and their placeholder quotes
+    # aren't on their empty fake transcript. The gate itself is tested in test_quote01_gate.py.
+    qg = types.ModuleType("quote_gate")
+    qg.enforce = lambda quotes, segments, episode_code, repair, limits=None: (
+        quotes,
+        {"checked": len(quotes), "kept": len(quotes), "repaired": [], "dropped": [], "listen": []},
+    )
+    qg.standup_line = lambda episode_code, report: (
+        f"Quote check (ST-10) for {episode_code}: passed through in this test."
+    )
+    qg.check_selected = lambda quotes, transcript_fast, episode_code, repair, limits: (
+        quotes,
+        {"checked": len(quotes), "kept": len(quotes), "repaired": [], "dropped": [], "listen": []},
+        f"Quote check (ST-10) for {episode_code}: passed through in this test.",
+    )
 
-    sys.modules.pop("jobs.round_1", None)
-    import jobs.round_1 as round_1
+    for name, mod in (
+        ("drive_client", drive),
+        ("calendar_client", cal),
+        ("anthropic_client", ac),
+        ("db", db_stub),
+        ("guest_form", gf),
+        ("quote_gate", qg),
+    ):
+        _swap.put(name, mod)
+
+    _swap.pop("rockstar.jobs.round_1", None)
+    from rockstar.jobs import round_1 as round_1
+
     importlib.reload(round_1)
     assert str(round_1._STATE_DIR) == str(state_dir), round_1._STATE_DIR
     assert not str(round_1._STATE_DIR).startswith(_REAL_STATE), "must not use live state"
@@ -404,6 +459,7 @@ def _patch_scripts(round_1):
             (tdir / "transcript_fast.txt").write_text("hello world transcript")
         elif label == "detect_boundaries":
             (tdir / "boundaries.json").write_text('{"boundaries": []}')
+
     round_1._run_script = fake_run_script
 
 
@@ -433,8 +489,7 @@ def test_round1_placeholder_blocks_side_effects():
 
 def test_round1_real_title_completes():
     state = _fresh_state()
-    real = {"title": "Don't Wait | Hormone Optimization", "hook": "Don't Wait",
-            "topic": "Hormone Optimization"}
+    real = {"title": "Don't Wait | Hormone Optimization", "hook": "Don't Wait", "topic": "Hormone Optimization"}
     round_1, drive = _load_round1_with_stubs(state, real)
     _patch_scripts(round_1)
 
@@ -449,8 +504,7 @@ def test_round1_real_title_completes():
     assert entry["episode_title"] == "Don't Wait | Hormone Optimization", entry
     assert entry["status"] == "drafting", entry
     assert entry["calendar_event_id"] == "cal-evt-1", entry
-    print("  3 round_1(real title): completes, counter→E31, schedule carries real "
-          "title @ status=drafting ✓")
+    print("  3 round_1(real title): completes, counter→E31, schedule carries real title @ status=drafting ✓")
 
 
 # ── criterion 5 — reprocess path still gated ───────────────────────────────────
@@ -460,15 +514,24 @@ def test_round1_reprocess_gated():
     state = _fresh_state()
     # Seed a prior E28 entry so an E28 inbox file is detected as a REPROCESS
     # (N < counter's next_episode_number=30). counter must NOT move on reprocess.
-    seed = {"episodes": [{
-        "episode_number": 28, "season": 2, "season_episode": 3,
-        "episode_code": "E28", "season_episode_code": "S2E3",
-        "drive_folder_id": "old-folder", "calendar_event_id": "old-cal",
-        "episode_title": "Old Real Title", "status": "drafting",
-        "drive_audio_file_id": "old-aud",
-    }], "updated_at": "2026-06-23T00:00:00Z"}
-    round_1, drive = _load_round1_with_stubs(
-        state, {"title": "TBD", "hook": "", "topic": ""}, seed_schedule=seed)
+    seed = {
+        "episodes": [
+            {
+                "episode_number": 28,
+                "season": 2,
+                "season_episode": 3,
+                "episode_code": "E28",
+                "season_episode_code": "S2E3",
+                "drive_folder_id": "old-folder",
+                "calendar_event_id": "old-cal",
+                "episode_title": "Old Real Title",
+                "status": "drafting",
+                "drive_audio_file_id": "old-aud",
+            }
+        ],
+        "updated_at": "2026-06-23T00:00:00Z",
+    }
+    round_1, drive = _load_round1_with_stubs(state, {"title": "TBD", "hook": "", "topic": ""}, seed_schedule=seed)
     # Point the inbox at an E28 file → reprocess detection.
     AUDIO28 = {"id": "aud-28", "name": "E28-reprocess-me.m4a"}
     drive.list_audio_in_inbox = lambda: [AUDIO28]
@@ -491,8 +554,7 @@ def test_round1_reprocess_gated():
     sched = _read_schedule(state)
     e28 = next(e for e in sched["episodes"] if e["episode_code"] == "E28")
     assert e28["status"] != "reprocessed", f"failed reprocess marked complete! {e28}"
-    print("  5 round_1(reprocess + placeholder): gated, counter untouched, E28 not "
-          "marked reprocessed ✓")
+    print("  5 round_1(reprocess + placeholder): gated, counter untouched, E28 not marked reprocessed ✓")
 
 
 # ── runner ─────────────────────────────────────────────────────────────────────
@@ -522,6 +584,7 @@ def main() -> int:
         except Exception as e:
             failed += 1
             import traceback
+
             print(f"  ERROR {t.__name__}: {type(e).__name__}: {e}")
             traceback.print_exc()
     print(f"\n{len(tests) - failed} passed, {failed} failed (of {len(tests)})")

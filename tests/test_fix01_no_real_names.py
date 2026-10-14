@@ -59,8 +59,16 @@ OWN_DOMAINS = ("admin-domain.test", "rockstarblends.com", "johnhiemstra.com")
 def real_domains() -> tuple[str, ...]:
     deny = denylist_path()
     listed = [ln.strip().lower() for ln in deny.read_text().splitlines()] if deny else []
-    return OWN_DOMAINS + tuple(t for t in listed if t and not t.startswith("#") and "." in t and " " not in t
-                               and "@" not in t and not t.replace(".", "").isdigit())
+    return OWN_DOMAINS + tuple(
+        t
+        for t in listed
+        if t
+        and not t.startswith("#")
+        and "." in t
+        and " " not in t
+        and "@" not in t
+        and not t.replace(".", "").isdigit()
+    )
 
 
 def _real_names() -> tuple[set[str], str]:

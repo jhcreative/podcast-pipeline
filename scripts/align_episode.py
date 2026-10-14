@@ -37,6 +37,7 @@ USAGE
 EXIT
   0 success · 1 bad args / missing input · 2 no audio · 3 alignment failed
 """
+
 import argparse
 import glob
 import json
@@ -118,22 +119,26 @@ def main():
     align_input = []
     for i, s in enumerate(segments):
         win_end = segments[i + 1]["start"] if i + 1 < len(segments) else audio_end_s
-        align_input.append({
-            "start": s["start"],
-            "end": max(win_end, s["end"]),  # never shrink a window below the base end
-            "text": s.get("text", ""),
-        })
+        align_input.append(
+            {
+                "start": s["start"],
+                "end": max(win_end, s["end"]),  # never shrink a window below the base end
+                "text": s.get("text", ""),
+            }
+        )
 
     t1 = time.time()
-    model_a, metadata = whisperx.load_align_model(
-        language_code="en", device=device, model_name=args.model
-    )
+    model_a, metadata = whisperx.load_align_model(language_code="en", device=device, model_name=args.model)
     t_load = time.time() - t1
     print(f"[align] wav2vec2 align model loaded in {t_load:.1f}s (model={args.model or 'default-en'})")
 
     t2 = time.time()
     result = whisperx.align(
-        align_input, model_a, metadata, audio, device,
+        align_input,
+        model_a,
+        metadata,
+        audio,
+        device,
         # 'nearest' fills any word the aligner can't pin (e.g. a number read oddly)
         # by snapping to its neighbour rather than dropping it — keeps the word
         # count stable so the boundary anchors still line up.
@@ -158,11 +163,13 @@ def main():
         # 'nearest' interpolation this is empty in practice (E27: 0 dropped).
         if w.get("start") is None or w.get("end") is None:
             continue
-        flat_words.append({
-            "word": w.get("word", ""),
-            "start": float(w["start"]),
-            "end": float(w["end"]),
-        })
+        flat_words.append(
+            {
+                "word": w.get("word", ""),
+                "start": float(w["start"]),
+                "end": float(w["end"]),
+            }
+        )
 
     # Also carry WhisperX's re-segmented segments (with their own per-word arrays),
     # so the file is self-describing and a human/agent can read it as prose. The
@@ -174,23 +181,25 @@ def main():
             for w in al.get("words", [])
             if w.get("start") is not None and w.get("end") is not None
         ]
-        out_segments.append({
-            "start": al.get("start"),
-            "end": al.get("end"),
-            "text": al.get("text", ""),
-            "words": seg_words,
-        })
+        out_segments.append(
+            {
+                "start": al.get("start"),
+                "end": al.get("end"),
+                "text": al.get("text", ""),
+                "words": seg_words,
+            }
+        )
 
     out = {
         "episode_slug": src.get("episode_slug"),
         "pass": "aligned",
-        "model": src.get("model", "base"),       # transcription model (unchanged)
+        "model": src.get("model", "base"),  # transcription model (unchanged)
         "align_model": args.model or "wav2vec2-en-default",
         "word_aligned": True,
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "source_transcript": os.path.basename(infile),
-        "words": flat_words,         # ← authoritative flat timeline for lookup
-        "segments": out_segments,    # ← WhisperX re-segmentation, for human reading
+        "words": flat_words,  # ← authoritative flat timeline for lookup
+        "segments": out_segments,  # ← WhisperX re-segmentation, for human reading
     }
     json.dump(out, open(outfile, "w"), indent=2)
 
@@ -200,7 +209,7 @@ def main():
     print(
         f"[align] COMPUTE: audio={audio_dur_s:.1f}s  "
         f"load_audio={t_audio:.1f}s  load_model={t_load:.1f}s  align={t_align:.1f}s  "
-        f"TOTAL={total:.1f}s  (RTF={total/audio_dur_s:.3f}× real-time)"
+        f"TOTAL={total:.1f}s  (RTF={total / audio_dur_s:.3f}× real-time)"
     )
 
 

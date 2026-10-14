@@ -19,7 +19,7 @@ Environment=BRAND_ASSETS_DIR=/opt/rockstar-pipeline/BrandAssets
 # after 0d8ed56; see transcribe_fast.sh's ENV_FILE default.
 Environment=ENV_FILE=/opt/rockstar-pipeline/scripts/.env
 Environment=FFMPEG_BIN=/usr/bin/ffmpeg
-ExecStart=/opt/rockstar-pipeline/venv/bin/python worker.py
+ExecStart=/opt/rockstar-pipeline/venv/bin/python -m rockstar.service.worker
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal

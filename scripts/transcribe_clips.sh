@@ -9,8 +9,12 @@
 #   Stage 4: inject_word_timestamps.js (merge into quotes.json)
 #
 # Runs WhisperX large-v3 with word-level alignment on each clip in <episode>/clips/.
-# Each clip is ~30-60s, so 5 clips = ~5 min of audio total. Even with large-v3
-# + alignment, this completes in ~2-3 min (vs. ~20-30 min for the full episode).
+#
+# CLIP-01c: the batch size and the longest clip come from the box's MEASURED limits file (box-limits.env, written by
+# measure_clip_limit.sh, CLIP-01b), never from here. Batch size is what makes memory grow with clip length: at batch 8
+# a 175 s clip peaked at ~6.1 GB and E13 died of OOM on the 4 GB box five times; at batch 2 the peak is flat across
+# 30-180 s (~4.1-4.4 GB on the 8 GB box). No limits file, no run (exit 4); a clip over the limit, no run (exit 5).
+# A quote clip is normally under a minute and a half (the reel ceiling); a long_form quote can run to ~170 s.
 #
 # Diarization is SKIPPED in this stage — we already know the speaker for each
 # quote (recorded in quotes.json during Brand Team selection).
@@ -23,6 +27,8 @@
 #   1 invalid args / missing dependencies
 #   2 no clips found or clips_manifest.json missing
 #   3 whisperx failed
+#   4 no usable limits file (box-limits.env): measure first, never guess
+#   5 a clip is longer than the box's CLIP_MAX_SECONDS: WhisperX is never started
 
 set -euo pipefail
 
@@ -65,8 +71,35 @@ if [[ "$CLIP_COUNT" -eq 0 ]]; then
   exit 2
 fi
 
+# CLIP-01c: the box's measured limits. Read as data (never sourced: it's a file on disk, not a script).
+LIMITS_FILE="${STATE_DIR:-/opt/rockstar-pipeline/state}/box-limits.env"
+# The test suite's fixture only: BOX_LIMITS_FILE counts with BOX_LIMITS_TEST=1, so a stray variable can't redirect a run.
+if [[ "${BOX_LIMITS_TEST:-}" == "1" && -n "${BOX_LIMITS_FILE:-}" ]]; then LIMITS_FILE="$BOX_LIMITS_FILE"; fi
+# One awk, no pipe: under pipefail a `sed | tail` on a missing file ends the script with exit 1, not 4.
+limit_value() { awk -F= -v k="$1" '$1 == k && $2 ~ /^[0-9]+$/ { v = $2 } END { print v }' "$LIMITS_FILE"; }
+CLIP_MAX_SECONDS=""
+CLIP_BATCH_SIZE=""
+if [[ -r "$LIMITS_FILE" ]]; then
+  CLIP_MAX_SECONDS=$(limit_value CLIP_MAX_SECONDS)
+  CLIP_BATCH_SIZE=$(limit_value CLIP_BATCH_SIZE)
+fi
+if [[ -z "$CLIP_MAX_SECONDS" || -z "$CLIP_BATCH_SIZE" || "$CLIP_MAX_SECONDS" -le 0 || "$CLIP_BATCH_SIZE" -le 0 ]]; then
+  echo "ERROR: no usable CLIP_MAX_SECONDS / CLIP_BATCH_SIZE in $LIMITS_FILE. Measure the box first:" >&2
+  echo "       scripts/measure_clip_limit.sh --measure, then --write --reserve-mb 600 (CLIP-01b)" >&2
+  exit 4
+fi
+OVER=$(jq -r --argjson max "$CLIP_MAX_SECONDS" \
+  '.clips[] | select(((.clip_end_ms - .clip_start_ms) / 1000) > $max)
+   | "quote \(.quote_index): clip \((.clip_end_ms - .clip_start_ms) / 1000) s"' "$MANIFEST")
+if [[ -n "$OVER" ]]; then
+  echo "ERROR: over the box's CLIP_MAX_SECONDS=$CLIP_MAX_SECONDS ($LIMITS_FILE); WhisperX not started:" >&2
+  echo "$OVER" >&2
+  exit 5
+fi
+echo "INFO: box limits: clips up to ${CLIP_MAX_SECONDS}s, batch ${CLIP_BATCH_SIZE} ($LIMITS_FILE)"
+
 echo "INFO: Transcribing $CLIP_COUNT clip(s) with WhisperX large-v3 + word alignment."
-echo "INFO: Estimated runtime: ~2-3 min total (vs. 20-30 min for the legacy full-episode pass)."
+echo "INFO: Expect ~1-2 min per clip on the box at batch ${CLIP_BATCH_SIZE}."
 
 source "$VENV_PATH/bin/activate"
 
@@ -96,7 +129,7 @@ for IDX in $(seq 0 $((CLIP_COUNT - 1))); do
     --output_dir "$WORK_SUBDIR"
     --output_format json
     --compute_type int8
-    --batch_size 8
+    --batch_size "$CLIP_BATCH_SIZE"
   )
 
   if ! "${WHISPERX_CMD[@]}" >> "$OUTPUT_DIR/whisperx_clips.log" 2>&1; then

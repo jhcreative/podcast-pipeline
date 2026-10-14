@@ -13,7 +13,7 @@ Environment=VENV_PATH=/opt/rockstar-pipeline/scripts/whisperx_env
 Environment=WORK_DIR_BASE=/var/tmp/rockstar-work
 Environment=BRAND_ASSETS_DIR=/opt/rockstar-pipeline/BrandAssets
 Environment=FFMPEG_BIN=/usr/bin/ffmpeg
-ExecStart=/opt/rockstar-pipeline/venv/bin/uvicorn webhook_service:app \
+ExecStart=/opt/rockstar-pipeline/venv/bin/uvicorn rockstar.service.webhook_service:app \
     --host 127.0.0.1 \
     --port 8000 \
     --workers 1

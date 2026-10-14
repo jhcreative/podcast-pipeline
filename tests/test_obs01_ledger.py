@@ -34,6 +34,8 @@ import tempfile
 import types
 from pathlib import Path
 
+import _swap  # noqa: E402 — tests/: fakes go on the package too
+
 REPO = Path(__file__).resolve().parent.parent  # the repo root: tests/ is one level down
 sys.path.insert(0, str(REPO))
 TMP = Path(tempfile.mkdtemp(prefix="obs01-"))
@@ -42,14 +44,17 @@ os.environ["RUN_LOG_PATH"] = str(TMP / "run_log.jsonl")
 if "anthropic" not in sys.modules:
     _a = types.ModuleType("anthropic")
     _a.Anthropic = type("Anthropic", (), {"__init__": lambda self, *a, **k: None})
-    sys.modules["anthropic"] = _a
+    _swap.put("anthropic", _a)
 
-import anthropic_client  # noqa: E402
-import run_ledger  # noqa: E402
+from rockstar.clients import anthropic_client  # noqa: E402
+from rockstar.ops import run_ledger  # noqa: E402
 
 SENTINEL = "SENTINEL-obs01-guest-words-7d3f"
-QUOTES = {"quotes": [{"id": "q01", "speaker": "Guest Example", "text": f"A quote with {SENTINEL} in it.",
-                      "heading": "A heading"}]}
+QUOTES = {
+    "quotes": [
+        {"id": "q01", "speaker": "Guest Example", "text": f"A quote with {SENTINEL} in it.", "heading": "A heading"}
+    ]
+}
 
 
 def _ledger_path(name: str) -> Path:
@@ -106,8 +111,12 @@ def test_brand_team_chain_writes_four_events():
     _with(_Fake([_Resp(good, _Usage(i=900 + n, cr=100 * n)) for n in range(4)]))
     anthropic_client.run_brand_team_chain(f"transcript with {SENTINEL}", {"episode_code": "E99"})
     ev = _events(p, "model_call")
-    assert [e["step"] for e in ev] == ["brand_team.marcus", "brand_team.robert", "brand_team.dr_joe",
-                                       "brand_team.lisa"], [e["step"] for e in ev]
+    assert [e["step"] for e in ev] == [
+        "brand_team.marcus",
+        "brand_team.robert",
+        "brand_team.dr_joe",
+        "brand_team.lisa",
+    ], [e["step"] for e in ev]
     assert [e["input_tokens"] for e in ev] == [900, 901, 902, 903], "the canned usage, per call"
     assert [e["cache_read_input_tokens"] for e in ev] == [0, 100, 200, 300]
     assert all(e["outcome"] == "ok" and e["prompt"] == f"brand_team_{e['step'].split('.')[1]}.md" for e in ev)
@@ -115,10 +124,13 @@ def test_brand_team_chain_writes_four_events():
 
 
 def test_every_compose_call_is_recorded():
-    src = (REPO / "anthropic_client.py").read_text() + (REPO / "tools" / "run_dr_joe.py").read_text()
-    code = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("#"))
+    src = (REPO / "rockstar/clients/anthropic_client.py").read_text() + (
+        REPO / "rockstar" / "tools" / "run_dr_joe.py"
+    ).read_text()
+    code = "\n".join(line for line in src.splitlines() if not line.lstrip().startswith("#"))
     assert "client.messages.create(" not in code, "a model call that bypasses the ledger"
-    assert code.count("run_ledger.create(") == 9, "seven in anthropic_client, two in run_dr_joe"
+    # eight in anthropic_client (QUOTE-01 added Lisa's restore-or-swap pass), two in run_dr_joe
+    assert code.count("run_ledger.create(") == 10, "eight in anthropic_client, two in run_dr_joe"
 
 
 # ── AC-2 ──────────────────────────────────────────────────────────────────────
@@ -129,11 +141,19 @@ def test_failed_call_recorded_and_reraised():
 
     class Overloaded(Exception):
         pass
+
     boom = Overloaded("503 overloaded")
     fake = _Fake([boom])
     try:
-        run_ledger.create(fake, step="faq", prompt="faq.md", model="claude-sonnet-4-6", max_tokens=10,
-                          system="s", messages=[{"role": "user", "content": "x"}])
+        run_ledger.create(
+            fake,
+            step="faq",
+            prompt="faq.md",
+            model="claude-sonnet-4-6",
+            max_tokens=10,
+            system="s",
+            messages=[{"role": "user", "content": "x"}],
+        )
     except Overloaded as exc:
         assert exc is boom, "the same exception, unchanged"
     else:
@@ -147,7 +167,8 @@ def test_failed_call_recorded_and_reraised():
 
 
 def test_step_clock_outcomes():
-    import content_gates
+    from rockstar.gates import content_gates
+
     p = _ledger_path("steps")
     clock = run_ledger.StepClock("publish_finalize")
     clock.start("4", "download")
@@ -162,17 +183,24 @@ def test_step_clock_outcomes():
         clock.fail(exc)
     ev = _events(p, "step")
     got = [(e["step"], e["outcome"], e["detail"]) for e in ev]
-    assert got == [("4", "ok", ""), ("6", "ok", ""), ("12b", "skipped", "cards/ not empty"),
-                   ("13", "skipped", "Heather is the guest"), ("15", "gate_failure", "assert_real_title")], got
+    assert got == [
+        ("4", "ok", ""),
+        ("6", "ok", ""),
+        ("12b", "skipped", "cards/ not empty"),
+        ("13", "skipped", "Heather is the guest"),
+        ("15", "gate_failure", "assert_real_title"),
+    ], got
     assert all(isinstance(e["duration_ms"], int) and e["phase"] == "publish_finalize" for e in ev)
 
 
 def test_gate_wrapped_in_permanent_failure_is_a_gate_failure():
-    import content_gates
+    from rockstar.gates import content_gates
+
     p = _ledger_path("wrapped")
 
     class PermanentFailure(Exception):
         pass
+
     clock = run_ledger.StepClock("publish_finalize")
     clock.start("6", "faq_blog")
     try:
@@ -189,13 +217,16 @@ def test_gate_wrapped_in_permanent_failure_is_a_gate_failure():
     clock.start("8", "transcribe_clips")
     clock.fail(TimeoutError("whisperx"))
     ev = _events(p, "step")
-    assert [(e["outcome"], e["detail"]) for e in ev[1:]] == [("permanent_failure", "PermanentFailure"),
-                                                              ("error", "TimeoutError")]
+    assert [(e["outcome"], e["detail"]) for e in ev[1:]] == [
+        ("permanent_failure", "PermanentFailure"),
+        ("error", "TimeoutError"),
+    ]
 
 
 def test_worker_closes_the_jobs_clock():
     p = _ledger_path("worker")
-    import worker
+    from rockstar.service import worker
+
     job = {"id": 77, "payload": "{}", "episode_id": "TBD"}
 
     def handler(job_type, job, payload, episode_id):
@@ -203,6 +234,7 @@ def test_worker_closes_the_jobs_clock():
         run_ledger.step("1", "parse_email")
         run_ledger.step("2", "identify")
         raise RuntimeError("drive 500")
+
     real = worker._run_handler
     worker._run_handler = handler
     try:
@@ -213,7 +245,9 @@ def test_worker_closes_the_jobs_clock():
         worker._run_handler = real
     ev = _events(p, "step")
     assert [(e["step"], e["outcome"], e["job_id"], e["episode"]) for e in ev] == [
-        ("1", "ok", 77, "E99"), ("2", "error", 77, "E99")], ev
+        ("1", "ok", 77, "E99"),
+        ("2", "error", 77, "E99"),
+    ], ev
 
 
 def test_skipped_brand_team_member_is_recorded():
@@ -225,39 +259,57 @@ def test_skipped_brand_team_member_is_recorded():
         if name == "brand_team_dr_joe.md":
             raise FileNotFoundError(name)
         return f"system prompt for {name}"
+
     anthropic_client._get_client = lambda: fake
     anthropic_client._load_prompt = load
     report = {}
     anthropic_client.run_brand_team_chain("t", {}, report=report)
     assert "brand_team_dr_joe" in report["skipped"], report
     (e,) = _events(p, "step")
-    assert (e["step"], e["name"], e["outcome"], e["detail"]) == ("10.dr_joe", "brand_team.dr_joe", "skipped",
-                                                                 "prompt file missing")
+    assert (e["step"], e["name"], e["outcome"], e["detail"]) == (
+        "10.dr_joe",
+        "brand_team.dr_joe",
+        "skipped",
+        "prompt file missing",
+    )
 
 
 # ── AC-4 ──────────────────────────────────────────────────────────────────────
 
 
 def test_cost_hand_calculation():
-    usage = {"input_tokens": 1000, "output_tokens": 500, "cache_creation_input_tokens": 2000,
-             "cache_read_input_tokens": 3000}
+    usage = {
+        "input_tokens": 1000,
+        "output_tokens": 500,
+        "cache_creation_input_tokens": 2000,
+        "cache_read_input_tokens": 3000,
+    }
     # by hand: (1000×3.00 + 2000×3.75 + 3000×0.30 + 500×15.00) / 1e6 = (3000 + 7500 + 900 + 7500) / 1e6
     assert run_ledger.cost_usd("claude-sonnet-4-6", usage) == 0.0189
     assert run_ledger.cost_usd("claude-unknown-9", usage) is None, "unknown is not zero"
     # 1-hour cache writes cost more: of the 2000 written, 500 at the 1h rate ($6.00) instead of 5m ($3.75)
     assert run_ledger.cost_usd("claude-sonnet-4-6", {**usage, "cache_write_1h_tokens": 500}) == round(
-        0.0189 + 500 * (6.00 - 3.75) / 1e6, 6)
+        0.0189 + 500 * (6.00 - 3.75) / 1e6, 6
+    )
     # Haiku 5.5: a prompt over 100K tokens is priced on the higher row
-    small = {"input_tokens": 50_000, "output_tokens": 1000, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}
+    small = {
+        "input_tokens": 50_000,
+        "output_tokens": 1000,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+    }
     big = {**small, "input_tokens": 120_000}
     # the threshold counts cache reads and writes too (the page: "all of its input tokens")
     cached_big = {**small, "input_tokens": 10_000, "cache_read_input_tokens": 95_000}
     assert run_ledger.cost_usd("claude-haiku-5-5", cached_big) == round(
-        (10_000 * 0.50 + 95_000 * 0.05 + 1000 * 2.50) / 1e6, 6), "cache reads push a prompt over 100K"
+        (10_000 * 0.50 + 95_000 * 0.05 + 1000 * 2.50) / 1e6, 6
+    ), "cache reads push a prompt over 100K"
     assert run_ledger.cost_usd("claude-haiku-5-5", small) == round((50_000 * 0.10 + 1000 * 0.50) / 1e6, 6)
     assert run_ledger.cost_usd("claude-haiku-5-5", big) == round((120_000 * 0.50 + 1000 * 2.50) / 1e6, 6)
     assert run_ledger.PRICES["claude-sonnet-5-5"][3] == 0.10, "Sonnet 5.5 cache hit: 0.05× input (live page)"
-    assert run_ledger.PRICES_AS_OF == "2026-10-10" and run_ledger.PRICES_SOURCE.startswith("https://platform.claude.com")
+    assert run_ledger.PRICES_AS_OF == "2026-10-10" and run_ledger.PRICES_SOURCE.startswith(
+        "https://platform.claude.com"
+    )
 
 
 # ── AC-5 ──────────────────────────────────────────────────────────────────────
@@ -267,8 +319,15 @@ def test_one_hour_cache_writes_read_from_the_sdk_usage():
     p = _ledger_path("onehour")
     usage = _Usage(i=1000, o=500, cw=2000, cr=0)
     usage.cache_creation = types.SimpleNamespace(ephemeral_5m_input_tokens=1500, ephemeral_1h_input_tokens=500)
-    run_ledger.create(_Fake([_Resp("x", usage)]), step="faq", prompt="faq.md", model="claude-sonnet-4-6",
-                      max_tokens=5, system="s", messages=[{"role": "user", "content": "x"}])
+    run_ledger.create(
+        _Fake([_Resp("x", usage)]),
+        step="faq",
+        prompt="faq.md",
+        model="claude-sonnet-4-6",
+        max_tokens=5,
+        system="s",
+        messages=[{"role": "user", "content": "x"}],
+    )
     (e,) = _events(p, "model_call")
     assert e["cache_write_1h_tokens"] == 500
     assert e["cost_usd"] == round((1000 * 3 + 1500 * 3.75 + 500 * 6.00 + 500 * 15) / 1e6, 6), e["cost_usd"]
@@ -286,11 +345,17 @@ def test_anomaly_is_not_a_skip():
 
 def test_summary_default_reads_where_the_ledger_writes():
     import subprocess
+
     p = _ledger_path("default")
     run_ledger.bind(job_id=1, episode="E91", run_kind="prod")
     run_ledger.record("step", phase="x", step="1", name="n", outcome="ok", detail="", duration_ms=0)
-    out = subprocess.run([sys.executable, "-B", str(REPO / "scripts" / "ledger_summary.py"), "E91"],
-                         capture_output=True, text=True, env={**os.environ, "RUN_LOG_PATH": str(p)}).stdout
+    out = subprocess.run(
+        [sys.executable, "-B", "-m", "rockstar.tools.ledger_summary", "E91"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "RUN_LOG_PATH": str(p)},
+    ).stdout
     assert str(p) in out and "1 for E91" in out, out
 
 
@@ -298,8 +363,15 @@ def test_interrupt_during_a_call_is_recorded():
     p = _ledger_path("interrupt")
     fake = _Fake([KeyboardInterrupt()])
     try:
-        run_ledger.create(fake, step="faq", prompt="faq.md", model="claude-sonnet-4-6", max_tokens=5,
-                          system="s", messages=[{"role": "user", "content": "x"}])
+        run_ledger.create(
+            fake,
+            step="faq",
+            prompt="faq.md",
+            model="claude-sonnet-4-6",
+            max_tokens=5,
+            system="s",
+            messages=[{"role": "user", "content": "x"}],
+        )
     except KeyboardInterrupt:
         pass
     (e,) = _events(p, "model_call")
@@ -320,22 +392,111 @@ def test_laptop_default_path_is_the_repo_not_opt():
 
 def test_summary_flags_cache_misses_per_job():
     import subprocess
+
     p = _ledger_path("summary")
 
     def call(job, step, read, attempt=1, model="claude-sonnet-4-6", cost=0.01):
         run_ledger.bind(job_id=job, episode="E90", run_kind="prod")
-        run_ledger.record("model_call", step=step, outcome="ok", attempt=attempt, model=model, cost_usd=cost,
-                          cache_read_input_tokens=read, cache_creation_input_tokens=0 if read else 9000,
-                          input_tokens=9000)
+        run_ledger.record(
+            "model_call",
+            step=step,
+            outcome="ok",
+            attempt=attempt,
+            model=model,
+            cost_usd=cost,
+            cache_read_input_tokens=read,
+            cache_creation_input_tokens=0 if read else 9000,
+            input_tokens=9000,
+        )
+
     for job in (1, 2):  # a reprocess: two jobs, each with its own first write
         call(job, "brand_team.marcus", 0)
         call(job, "brand_team.robert", 9000 if job == 1 else 0)
     call(2, "faq", 0, model="claude-new-model", cost=None)
-    out = subprocess.run([sys.executable, "-B", str(REPO / "scripts" / "ledger_summary.py"), "E90", "--ledger",
-                          str(p)], capture_output=True, text=True).stdout
-    misses = [l for l in out.splitlines() if "CACHE MISS" in l]
+    out = subprocess.run(
+        [sys.executable, "-B", str(REPO / "rockstar" / "tools" / "ledger_summary.py"), "E90", "--ledger", str(p)],
+        capture_output=True,
+        text=True,
+    ).stdout
+    misses = [line for line in out.splitlines() if "CACHE MISS" in line]
     assert len(misses) == 1 and "robert" in misses[0], out
     assert "NOT in the total" in out and "claude-new-model" in out, "unpriced real spend is called out"
+
+
+def test_summary_prints_the_run_records():
+    """John, 2026-10-13: a run's guest match, host episode, reviewer gaps and quote lengths are read in the summary."""
+    import subprocess
+
+    p = _ledger_path("records")
+    run_ledger.bind(job_id=160, episode="E89", run_kind="prod")
+    run_ledger.record("guest_match", matched=True, rule="first name heard twice")
+    run_ledger.record("host_episode", reason="no guest named; every quote is Heather's or John's")
+    run_ledger.record("reviewer_dropped", members=["brand_team_robert"])
+    run_ledger.record(
+        "quote_lengths",
+        ceiling=76.0,
+        lengths={"q01": 29.6},
+        long_form=[],
+        dropped=[{"id": "q02", "why": "over the ceiling", "span_s": 80.1}],
+        long_form_pending=None,
+    )
+    run_ledger.record("model_call", step="faq", outcome="ok", attempt=1, model="claude-sonnet-4-6", cost_usd=0.01)
+    run_ledger.bind(
+        episode="E89", run_kind="manual"
+    )  # rockstar/tools/rerun_brand_team.py binds this way (job 160 stays bound here)
+    run_ledger.record("quote_lengths", ceiling=76.0, lengths={"q01": 30.0}, long_form=[], dropped=[])
+    run_ledger.bind(job_id=161, episode="E88", run_kind="prod")
+    run_ledger.record("guest_match", matched=False, rule="another episode")
+    out = subprocess.run(
+        [sys.executable, "-B", str(REPO / "rockstar" / "tools" / "ledger_summary.py"), "E89", "--ledger", str(p)],
+        capture_output=True,
+        text=True,
+    ).stdout
+    block = out.split("Records — ", 1)[1].splitlines()
+    assert block[0].startswith("5 "), out
+    rows = block[1:6]
+    assert "guest_match" in rows[0] and "matched=yes" in rows[0] and "rule=first name heard twice" in rows[0], out
+    assert "host_episode" in rows[1] and "job 160" in rows[1], out
+    assert 'members=["brand_team_robert"]' in rows[2], out
+    assert '"id":"q02"' in rows[3] and "ceiling=76.0" in rows[3] and "long_form_pending" not in rows[3], out
+    assert "[manual]" in rows[4] and '"q01":30.0' in rows[4], "a hand re-run's record shows, tagged"
+    assert "another episode" not in out, "another episode's record never shows"
+    for key in ("ts=", "run_kind=", "episode="):
+        assert key not in "\n".join(rows), "the envelope isn't repeated in a record's fields"
+
+
+def test_summary_records_of_a_hand_rerun_alone_and_only_named_fields():
+    """Toby, PR #71: F1 an episode whose only lines are a hand re-run (run_kind manual, no job, as
+    rockstar/tools/rerun_brand_team.py writes them) still shows its records; F3 a field not on the allowlist never prints."""
+    import subprocess
+
+    p = _ledger_path("records-manual")
+    line = {
+        "ts": "2026-10-13T17:46:47.000000Z",
+        "event": "quote_lengths",
+        "job_id": None,
+        "episode": "E87",
+        "run_kind": "manual",
+        "ceiling": 76.0,
+        "lengths": {"q01": 29.6},
+        "long_form": [],
+        "dropped": [{"id": "q02", "why": "over the ceiling", "span_s": 80.1, "reasons": [SENTINEL]}],
+        "long_form_pending": [{"id": "q03", "span_s": 120.0, "text": SENTINEL}],
+        "quote_text": SENTINEL,
+    }
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with open(p, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(line) + "\n")
+    res = subprocess.run(
+        [sys.executable, "-B", str(REPO / "rockstar" / "tools" / "ledger_summary.py"), "E87", "--ledger", str(p)],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 1 and "nothing to report" in res.stdout, res.stdout
+    rows = res.stdout.split("Records — ", 1)[1].splitlines()
+    assert rows[0].startswith("1 ") and rows[1].lstrip().startswith("manual 2026-10-13"), res.stdout
+    assert '"id":"q02"' in rows[1] and '"why":"over the ceiling"' in rows[1] and '"id":"q03"' in rows[1], res.stdout
+    assert SENTINEL not in res.stdout and "quote_text" not in res.stdout and "reasons" not in res.stdout, res.stdout
 
 
 def test_unwritable_ledger_never_fails_the_call():
@@ -343,8 +504,15 @@ def test_unwritable_ledger_never_fails_the_call():
     blocker.write_text("x")
     os.environ["RUN_LOG_PATH"] = str(blocker / "run_log.jsonl")  # a file where a directory should be
     fake = _Fake([_Resp("hello")])
-    r = run_ledger.create(fake, step="title", prompt="title.md", model="claude-sonnet-4-6", max_tokens=5,
-                          system="s", messages=[{"role": "user", "content": "x"}])
+    r = run_ledger.create(
+        fake,
+        step="title",
+        prompt="title.md",
+        model="claude-sonnet-4-6",
+        max_tokens=5,
+        system="s",
+        messages=[{"role": "user", "content": "x"}],
+    )
     assert r.content[0].text == "hello", "the call's result comes back as if nothing happened"
     clock = run_ledger.StepClock("round_1")
     clock.start("1", "x")
@@ -355,10 +523,10 @@ def test_unwritable_ledger_never_fails_the_call():
 
 
 def test_sentinel_never_reaches_the_ledger():
-    import content_gates
+    from rockstar.gates import content_gates
+
     p = _ledger_path("sentinel")
-    _with(_Fake([_Resp(json.dumps(QUOTES)) for _ in range(4)] + [_Resp(json.dumps({"hook": SENTINEL,
-                                                                                    "topic": "t"}))]))
+    _with(_Fake([_Resp(json.dumps(QUOTES)) for _ in range(4)] + [_Resp(json.dumps({"hook": SENTINEL, "topic": "t"}))]))
     anthropic_client.run_brand_team_chain(f"transcript {SENTINEL}", {"guest_name": SENTINEL})
     try:
         anthropic_client.compose_title(f"transcript {SENTINEL}", {"guest": SENTINEL})
@@ -390,13 +558,26 @@ def test_run_kind_and_binding():
 
 
 def test_template_sha_tracks_shape_not_text():
-    base = dict(model="m", max_tokens=100, system="prompt A",
-                messages=[{"role": "user", "content": [{"type": "text", "text": "episode one",
-                                                         "cache_control": {"type": "ephemeral"}}]}])
+    base = dict(
+        model="m",
+        max_tokens=100,
+        system="prompt A",
+        messages=[
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": "episode one", "cache_control": {"type": "ephemeral"}}],
+            }
+        ],
+    )
     other_episode = json.loads(json.dumps(base))
     other_episode["messages"][0]["content"][0]["text"] = "episode two!"
-    moved = dict(base, system=[{"type": "text", "text": "transcript", "cache_control": {"type": "ephemeral"}},
-                               {"type": "text", "text": "prompt A"}])
+    moved = dict(
+        base,
+        system=[
+            {"type": "text", "text": "transcript", "cache_control": {"type": "ephemeral"}},
+            {"type": "text", "text": "prompt A"},
+        ],
+    )
     more_tokens = dict(base, max_tokens=200)
     sha = run_ledger.request_template_sha
     assert sha(base) == sha(dict(base, model="other")), "the model is recorded on its own"
@@ -411,8 +592,11 @@ def test_template_sha_tracks_shape_not_text():
     ttl_1h["messages"][0]["content"][0]["cache_control"] = {"type": "ephemeral", "ttl": "1h"}
     assert sha(ttl_5m) != sha(ttl_1h), "a cache TTL VALUE change (5m → 1h) is a new template"
     # any string under a key that is not a known setting is blanked — tool input, metadata, a future field
-    leaky = dict(base, metadata={"user_id": SENTINEL}, tools=[{"name": "t", "description": SENTINEL,
-                                                                "input_schema": {"type": "object"}}])
+    leaky = dict(
+        base,
+        metadata={"user_id": SENTINEL},
+        tools=[{"name": "t", "description": SENTINEL, "input_schema": {"type": "object"}}],
+    )
     assert SENTINEL not in json.dumps(run_ledger._shape(leaky)), "a free-text value reached the template hash"
     # prompt_sha is the system text actually sent
     p = _ledger_path("sha")
@@ -421,16 +605,29 @@ def test_template_sha_tracks_shape_not_text():
     assert e["prompt_sha"] == run_ledger.sha256("prompt A") and e["max_tokens"] == 100
     # CACHE-01's shapes: a block system never puts the transcript into prompt_sha — in either cache layout
     layouts = (
-        lambda tr: [{"type": "text", "text": tr, "cache_control": {"type": "ephemeral"}}, {"type": "text", "text": "prompt A"}],
-        lambda tr: [{"type": "text", "text": tr}, {"type": "text", "text": "prompt A", "cache_control": {"type": "ephemeral"}}],
+        lambda tr: [
+            {"type": "text", "text": tr, "cache_control": {"type": "ephemeral"}},
+            {"type": "text", "text": "prompt A"},
+        ],
+        lambda tr: [
+            {"type": "text", "text": tr},
+            {"type": "text", "text": "prompt A", "cache_control": {"type": "ephemeral"}},
+        ],
     )
     for layout in layouts:
         for transcript in (f"episode one {SENTINEL}", "episode two, a different transcript"):
             run_ledger.create(_Fake([_Resp("x")]), step="faq", prompt="faq.md", **dict(base, system=layout(transcript)))
-            run_ledger.create(_Fake([_Resp("x")]), step="faq", prompt="faq.md", prompt_text="prompt A",
-                              **dict(base, system=layout(transcript)))
+            run_ledger.create(
+                _Fake([_Resp("x")]),
+                step="faq",
+                prompt="faq.md",
+                prompt_text="prompt A",
+                **dict(base, system=layout(transcript)),
+            )
     later = _events(p, "model_call")[1:]
-    assert [e["prompt_sha"] for e in later[0::2]] == [None] * 4, "block system without prompt_text: unknown, not guessed"
+    assert [e["prompt_sha"] for e in later[0::2]] == [None] * 4, (
+        "block system without prompt_text: unknown, not guessed"
+    )
     assert {e["prompt_sha"] for e in later[1::2]} == {run_ledger.sha256("prompt A")}, "prompt_text is what's hashed"
     assert SENTINEL not in p.read_text()
     doc = json.loads(json.dumps(base))
@@ -451,6 +648,7 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             failed += 1
             import traceback
+
             print(f"  ERROR {t.__name__}: {type(e).__name__}: {e}")
             traceback.print_exc()
     shutil.rmtree(TMP, ignore_errors=True)

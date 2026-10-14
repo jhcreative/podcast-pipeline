@@ -16,17 +16,17 @@ exactly what a live test cannot safely explore. The live run is CARD-02's remain
 acceptance criterion and is not replaced by this file.
 """
 
-import os
 import sys
 import tempfile
 import types
 from pathlib import Path
 
-WORKTREE = Path(__file__).resolve().parent.parent  # the repo root: tests/ is one level down
-sys.path.insert(0, str(WORKTREE / "quote_cards"))
+import _swap  # noqa: E402 — tests/: fakes go on the package too
 
-CARDS_FOLDER = {"id": "cards-id", "name": "cards",
-                "mimeType": "application/vnd.google-apps.folder"}
+WORKTREE = Path(__file__).resolve().parent.parent  # the repo root: tests/ is one level down
+sys.path.insert(0, str(WORKTREE))
+
+CARDS_FOLDER = {"id": "cards-id", "name": "cards", "mimeType": "application/vnd.google-apps.folder"}
 EPISODE_FOLDER = {"id": "ep-id", "name": "E29-thessaly"}
 
 
@@ -38,8 +38,7 @@ class FakeDrive(types.ModuleType):
         self.calls = []
         self.cards_exists = cards_exists
         self.upload_raises = upload_raises
-        self.existing = [{"id": "old-1", "name": "E29_q01_1of2.png"},
-                         {"id": "old-2", "name": "E29_q01_caption.txt"}]
+        self.existing = [{"id": "old-1", "name": "E29_q01_1of2.png"}, {"id": "old-2", "name": "E29_q01_caption.txt"}]
 
     def find_episode_folder(self, prefix):
         self.calls.append(("find", prefix))
@@ -61,7 +60,7 @@ class FakeDrive(types.ModuleType):
 
     def upload_file(self, local_path, folder_id, mime_type="application/octet-stream"):
         name = Path(local_path).name
-        if name == "_upload_incomplete.txt":       # CARD-05: the in-flight marker
+        if name == "_upload_incomplete.txt":  # CARD-05: the in-flight marker
             self.calls.append(("marker", name))
             return {"id": "marker"}
         self.calls.append(("upload", name, mime_type))
@@ -74,17 +73,23 @@ def _local_dir(tmp):
     """A realistic post-run folder: cards, captions, and local scratch."""
     d = Path(tmp) / "cards"
     d.mkdir()
-    for name in ("E29_q01_1of2.png", "E29_q01_2of2.png", "E29_q01_caption.txt",
-                 "E29_q02_1of1.png", "E29_q02_caption.txt"):
+    for name in (
+        "E29_q01_1of2.png",
+        "E29_q01_2of2.png",
+        "E29_q01_caption.txt",
+        "E29_q02_1of1.png",
+        "E29_q02_caption.txt",
+    ):
         (d / name).write_text("x")
-    (d / "_E29_contact_sheet.png").write_text("scratch")   # local only
+    (d / "_E29_contact_sheet.png").write_text("scratch")  # local only
     (d / ".DS_Store").write_text("junk")
     return d
 
 
 def _run(tmp, fake):
-    sys.modules["drive_client"] = fake
-    import card_upload
+    _swap.put("rockstar.clients.drive_client", fake)
+    from rockstar.cards import card_upload
+
     d = _local_dir(tmp)
     card_upload.upload_cards(29, str(d))
     return d
@@ -102,8 +107,9 @@ def test_trashes_before_uploading():
         _run(tmp, fake)
     kinds = [c[0] for c in fake.calls]
     assert "trash" in kinds and "upload" in kinds, kinds
-    assert max(i for i, k in enumerate(kinds) if k == "trash") < \
-           min(i for i, k in enumerate(kinds) if k == "upload"), kinds
+    assert max(i for i, k in enumerate(kinds) if k == "trash") < min(i for i, k in enumerate(kinds) if k == "upload"), (
+        kinds
+    )
     assert kinds.count("trash") == 2, kinds
     print("  ok  every trash precedes every upload (2 stale files cleared)")
 
@@ -124,9 +130,13 @@ def test_uploads_whole_folder_excluding_scratch():
     with tempfile.TemporaryDirectory() as tmp:
         _run(tmp, fake)
     names = [c[1] for c in fake.calls if c[0] == "upload"]
-    assert sorted(names) == ["E29_q01_1of2.png", "E29_q01_2of2.png",
-                             "E29_q01_caption.txt", "E29_q02_1of1.png",
-                             "E29_q02_caption.txt"], names
+    assert sorted(names) == [
+        "E29_q01_1of2.png",
+        "E29_q01_2of2.png",
+        "E29_q01_caption.txt",
+        "E29_q02_1of1.png",
+        "E29_q02_caption.txt",
+    ], names
     assert not any(n.startswith("_") or n.startswith(".") for n in names), names
     print(f"  ok  uploads all {len(names)} deliverables; _scratch and dotfiles stay local")
 
@@ -153,8 +163,9 @@ def test_finds_folder_by_hyphenated_prefix():
 def test_missing_episode_folder_is_a_hard_failure():
     fake = FakeDrive()
     fake.find_episode_folder = lambda prefix: None
-    sys.modules["drive_client"] = fake
-    import card_upload
+    _swap.put("rockstar.clients.drive_client", fake)
+    from rockstar.cards import card_upload
+
     with tempfile.TemporaryDirectory() as tmp:
         d = _local_dir(tmp)
         try:
@@ -171,8 +182,9 @@ def test_failure_leaves_local_intact():
     """A dead network mid-upload must not cost the rendered work."""
     fake = FakeDrive(upload_raises=True)
     with tempfile.TemporaryDirectory() as tmp:
-        sys.modules["drive_client"] = fake
-        import card_upload
+        _swap.put("rockstar.clients.drive_client", fake)
+        from rockstar.cards import card_upload
+
         d = _local_dir(tmp)
         try:
             card_upload.upload_cards(29, str(d))
@@ -208,6 +220,7 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             failed += 1
             import traceback
+
             print(f"  ERROR {t.__name__}: {type(e).__name__}: {e}")
             traceback.print_exc()
     print(f"\n{len(tests) - failed} passed, {failed} failed (of {len(tests)})")

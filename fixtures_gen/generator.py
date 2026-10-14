@@ -36,22 +36,68 @@ HOST = "Heather Reilly Hiemstra"
 # Invented, and checked against real surnames, places and brands (re-review: Tregothnan is a real herbal-tea
 # estate, Ombersley a real village, and Marchbanks/Penhallow/Vellacott/Grisewood/Dunwiddie real surnames). Every
 # surname is a coinage; every guest is also marked synthetic in the files (the About bio and the transcript header).
-_FIRST = ["Marlowe", "Ondine", "Thessaly", "Ravenna", "Calloway", "Linnea", "Peregrine", "Saffi", "Isolde",
-          "Tamsin", "Wren", "Corisande", "Bettany", "Juniper", "Oriel", "Sabeline"]
-_LAST = ["Quillfeatherby", "Ashgrovenly", "Pemberly-Vantor", "Kestrelmoorish", "Larkspirelle", "Thistlewoodby",
-         "Fairhallowen", "Brindlequist", "Morrowvane", "Velloquin", "Strandwhistle", "Corvellian"]
-_CREDENTIAL = ["functional nutritionist", "sleep researcher", "pelvic-floor physiotherapist", "herbalist",
-               "endocrinology nurse", "strength coach", "menopause doula", "integrative pharmacist"]
-_TOPICS = [("Sleep Architecture", "how deep sleep changes after forty and what to do about the 3 a.m. wake-ups"),
-           ("Strength Over Cardio", "why lifting heavy protects bones and blood sugar in perimenopause"),
-           ("The Gut-Hormone Loop", "how the microbiome recycles estrogen and why fiber matters"),
-           ("Hot Flash Triggers", "the overlooked triggers and a two-week tracking experiment"),
-           ("Pelvic Floor Truths", "what leaks, aches and pressure are telling you, and the fixes"),
-           ("Plant Medicine Basics", "how to read a botanical label and dose with care"),
-           ("Midlife Mood Swings", "separating hormone noise from burnout, and when to ask for help"),
-           ("Protein at Every Meal", "why the numbers change after forty and simple swaps")]
-_HOOKS = ["Different Rhythm, Same Song", "The Quiet Engine", "Under the Surface", "Turning Down the Heat",
-          "Small Levers, Big Shifts", "What the Body Knows", "Rewriting the Map", "Hold the Line"]
+_FIRST = [
+    "Marlowe",
+    "Ondine",
+    "Thessaly",
+    "Ravenna",
+    "Calloway",
+    "Linnea",
+    "Peregrine",
+    "Saffi",
+    "Isolde",
+    "Tamsin",
+    "Wren",
+    "Corisande",
+    "Bettany",
+    "Juniper",
+    "Oriel",
+    "Sabeline",
+]
+_LAST = [
+    "Quillfeatherby",
+    "Ashgrovenly",
+    "Pemberly-Vantor",
+    "Kestrelmoorish",
+    "Larkspirelle",
+    "Thistlewoodby",
+    "Fairhallowen",
+    "Brindlequist",
+    "Morrowvane",
+    "Velloquin",
+    "Strandwhistle",
+    "Corvellian",
+]
+_CREDENTIAL = [
+    "functional nutritionist",
+    "sleep researcher",
+    "pelvic-floor physiotherapist",
+    "herbalist",
+    "endocrinology nurse",
+    "strength coach",
+    "menopause doula",
+    "integrative pharmacist",
+]
+_TOPICS = [
+    ("Sleep Architecture", "how deep sleep changes after forty and what to do about the 3 a.m. wake-ups"),
+    ("Strength Over Cardio", "why lifting heavy protects bones and blood sugar in perimenopause"),
+    ("The Gut-Hormone Loop", "how the microbiome recycles estrogen and why fiber matters"),
+    ("Hot Flash Triggers", "the overlooked triggers and a two-week tracking experiment"),
+    ("Pelvic Floor Truths", "what leaks, aches and pressure are telling you, and the fixes"),
+    ("Plant Medicine Basics", "how to read a botanical label and dose with care"),
+    ("Midlife Mood Swings", "separating hormone noise from burnout, and when to ask for help"),
+    ("Protein at Every Meal", "why the numbers change after forty and simple swaps"),
+]
+_HOOKS = [
+    "Different Rhythm, Same Song",
+    "The Quiet Engine",
+    "Under the Surface",
+    "Turning Down the Heat",
+    "Small Levers, Big Shifts",
+    "What the Body Knows",
+    "Rewriting the Map",
+    "Hold the Line",
+]
 
 # Each property, and the gates that MUST refuse an episode carrying it (run_gates names them).
 PROPERTIES = {
@@ -63,11 +109,11 @@ PROPERTIES = {
     "no_about_section": {"parse_apple_summary"},
     # Generated but NOT refused by a Python gate here — the empty set means "passes the Python gates", which is a
     # statement about the gates, not a check of the property (re-review: say so):
-    "apostrophe_in_title": set(),   # checked: propose_slug still yields a clean slug (a local regex, not a gate)
-    "host_as_guest": set(),         # DOCUMENTS a known gap: assert_guest_featured exempts any guest named Heather
-                                    # (REEL-08), so an all-host quote set passes. Not a fix of that rule.
-    "long_tangent": set(),          # for detect_boundaries.js (Node) — not checked by any Python suite yet
-    "long_quote": set(),            # for the card-fit check (needs Pillow + fonts) — not checked here
+    "apostrophe_in_title": set(),  # checked: propose_slug still yields a clean slug (a local regex, not a gate)
+    "host_as_guest": set(),  # DOCUMENTS a known gap: assert_guest_featured exempts any guest named Heather
+    # (REEL-08), so an all-host quote set passes. Not a fix of that rule.
+    "long_tangent": set(),  # for detect_boundaries.js (Node) — not checked by any Python suite yet
+    "long_quote": set(),  # for the card-fit check (needs Pillow + fonts) — not checked here
 }
 GATE_CHECKED = {"placeholder_title", "guest_not_featured", "missing_heading", "no_bold_lead", "no_about_section"}
 
@@ -94,9 +140,17 @@ class Episode:
         folder.mkdir(parents=True, exist_ok=True)
         (folder / "transcript_fast.txt").write_text(self.transcript, encoding="utf-8")
         (folder / "apple_summary.md").write_text(self.apple_summary, encoding="utf-8")
-        (folder / "quotes.json").write_text(json.dumps({"_fixture_note": f"SYNTHETIC — fixtures_gen seed {self.seed}, "
-                                                        f"property {self.prop}", "quotes": self.quotes},
-                                                       indent=2, ensure_ascii=False), encoding="utf-8")
+        (folder / "quotes.json").write_text(
+            json.dumps(
+                {
+                    "_fixture_note": f"SYNTHETIC — fixtures_gen seed {self.seed}, property {self.prop}",
+                    "quotes": self.quotes,
+                },
+                indent=2,
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
         (folder / "faq.md").write_text(self.faq, encoding="utf-8")
         return folder
 
@@ -134,41 +188,74 @@ def generate(seed: int, prop: str = "clean") -> Episode:
         text = f"When it comes to {lead.lower()}, {body}."
         if prop == "long_quote" and i == 0:
             text = " ".join([text] * 8)
-        q = {"id": f"q{i + 1:02d}", "speaker": speaker, "text": text, "heading": lead,
-             "transcript_start_ms": 0, "transcript_end_ms": 0, "reel_candidate": True, "lisa_approved": True}
+        q = {
+            "id": f"q{i + 1:02d}",
+            "speaker": speaker,
+            "text": text,
+            "heading": lead,
+            "transcript_start_ms": 0,
+            "transcript_end_ms": 0,
+            "reel_candidate": True,
+            "lisa_approved": True,
+        }
         if prop == "missing_heading" and i == 2:
             q["heading"] = ""
         quotes.append(q)
 
     # apple_summary.md in the shape parse_apple_summary accepts
-    bullets = [(f"**{lead}**" if prop != "no_bold_lead" else lead) + f" {body[0].upper()}{body[1:]}."
-               for lead, body in topics]
-    about = [] if prop == "no_about_section" else [
-        f"**About {guest}**",
-        f"{guest} is a {credential} who helps women in midlife make sense of their changing bodies "
-        f"(a synthetic guest, invented for testing)."]
-    summary = "\n\n".join([
-        f"## {title}",
-        f"{HOST} sits down with {guest}, a {credential}, to talk about {topics[0][1]}.",
-        "Conversations include",
-        *bullets,
-        "Tune in for practical steps you can start this week.",
-        *about,
-    ]) + "\n"
+    bullets = [
+        (f"**{lead}**" if prop != "no_bold_lead" else lead) + f" {body[0].upper()}{body[1:]}." for lead, body in topics
+    ]
+    about = (
+        []
+        if prop == "no_about_section"
+        else [
+            f"**About {guest}**",
+            f"{guest} is a {credential} who helps women in midlife make sense of their changing bodies "
+            f"(a synthetic guest, invented for testing).",
+        ]
+    )
+    summary = (
+        "\n\n".join(
+            [
+                f"## {title}",
+                f"{HOST} sits down with {guest}, a {credential}, to talk about {topics[0][1]}.",
+                "Conversations include",
+                *bullets,
+                "Tune in for practical steps you can start this week.",
+                *about,
+            ]
+        )
+        + "\n"
+    )
 
-    faq = "\n\n".join(f"Q: What is the main idea behind {lead.lower()}?\nA: {body[0].upper()}{body[1:]}."
-                      for lead, body in topics) + "\n"
-    return Episode(seed=seed, prop=prop, number=number, title=title, guest_name=guest, guest_email=email,
-                   transcript=transcript, apple_summary=summary, quotes=quotes, faq=faq,
-                   meta={"credential": credential})
+    faq = (
+        "\n\n".join(
+            f"Q: What is the main idea behind {lead.lower()}?\nA: {body[0].upper()}{body[1:]}." for lead, body in topics
+        )
+        + "\n"
+    )
+    return Episode(
+        seed=seed,
+        prop=prop,
+        number=number,
+        title=title,
+        guest_name=guest,
+        guest_email=email,
+        transcript=transcript,
+        apple_summary=summary,
+        quotes=quotes,
+        faq=faq,
+        meta={"credential": credential},
+    )
 
 
 def run_gates(ep: Episode) -> set[str]:
     """Run the pipeline's own gates on a generated episode; return the names of those that refused it."""
     import re
 
-    import blog_post
-    import content_gates
+    from rockstar.content import blog_post
+    from rockstar.gates import content_gates
 
     refused = set()
     checks = {
@@ -182,7 +269,8 @@ def run_gates(ep: Episode) -> set[str]:
             check()
         except content_gates.GateFailure:
             refused.add(name)
-    if content_gates.is_real_title(ep.title) and not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*",
-                                                                  blog_post.propose_slug(ep.title)):
+    if content_gates.is_real_title(ep.title) and not re.fullmatch(
+        r"[a-z0-9]+(-[a-z0-9]+)*", blog_post.propose_slug(ep.title)
+    ):
         refused.add("propose_slug")
     return refused
